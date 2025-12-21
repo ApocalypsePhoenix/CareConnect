@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,16 +13,14 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   
-  // State variable for Remember Me functionality
   bool _rememberMe = false;
 
   void _handleLogin() {
     if (_formKey.currentState!.validate()) {
       final email = _emailController.text.trim();
       
-      // In a real application, you would save the email to local storage 
-      // (like shared_preferences) if _rememberMe is true.
-      debugPrint('Remember Me is set to: $_rememberMe');
+      // Verification logic placeholder
+      debugPrint('Remember Me: $_rememberMe');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -36,6 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -53,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // WTMS Style: Floating Branding Icon
+                // Floating Branding Icon
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -142,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 10),
 
-                          // REMEMBER ME CHECKBOX [Requirement: Accessibility Support]
+                          // Remember Me Checkbox
                           Theme(
                             data: ThemeData(unselectedWidgetColor: const Color(0xFF8D5F8C)),
                             child: CheckboxListTile(
@@ -189,6 +189,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextButton(
                   onPressed: () {
                     // Navigate to Registration Screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SignUpScreen()),
+                    );
                   },
                   child: const Text(
                     "New to CareConnect? Sign Up",
