@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/mysql_api_service.dart';
 import 'signup_screen.dart';
+import 'client_dashboard.dart'; // Import the dashboard
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,21 +16,66 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   
   bool _rememberMe = false;
+  bool _isLoading = false;
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      final email = _emailController.text.trim();
-      
-      // Verification logic placeholder
-      debugPrint('Remember Me: $_rememberMe');
+      setState(() {
+        _isLoading = true;
+      });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Authenticating $email...'), 
-          backgroundColor: const Color(0xFF6B3F69),
-        ),
-      );
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
+      // Call the centralized API service
+      final result = await MysqlApiService.login(email, password);
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result['success']) {
+        final user = result['user'];
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Welcome back, ${user['name']}!'), 
+            backgroundColor: const Color(0xFF6B3F69),
+          ),
+        );
+
+        // Role-based navigation
+        if (user['role'] == 'Client') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ClientDashboard(user: user),
+            ),
+          );
+        } else if (user['role'] == 'Worker') {
+          // TODO: Navigate to Worker Dashboard once created
+          debugPrint('Worker login successful, but Worker Dashboard is not yet implemented.');
+        }
+        
+      } else {
+        // Show error message from server
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Login failed'), 
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -106,6 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           // Email Input
                           TextFormField(
                             controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
                             style: const TextStyle(fontSize: 18),
                             decoration: InputDecoration(
                               labelText: 'Email',
@@ -167,17 +215,30 @@ class _LoginScreenState extends State<LoginScreen> {
                           
                           // Login Button
                           ElevatedButton(
-                            onPressed: _handleLogin,
+                            onPressed: _isLoading ? null : _handleLogin,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF6B3F69),
                               padding: const EdgeInsets.symmetric(vertical: 18),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                               elevation: 8,
                             ),
-                            child: const Text(
-                              'LOGIN', 
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                            ),
+                            child: _isLoading 
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'LOGIN', 
+                                  style: TextStyle(
+                                    fontSize: 20, 
+                                    fontWeight: FontWeight.bold, 
+                                    color: Colors.white
+                                  ),
+                                ),
                           ),
                         ],
                       ),
@@ -188,7 +249,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 30),
                 TextButton(
                   onPressed: () {
-                    // Navigate to Registration Screen
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const SignUpScreen()),
