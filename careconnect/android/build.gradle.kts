@@ -4,7 +4,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // Fix: Explicitly defining the Kotlin version to 2.1.0 to match the libraries
+        // Explicitly defining the Kotlin version to 2.1.0 to match modern library metadata
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0")
         
         // Essential for Google Sign-In and Firebase
@@ -34,6 +34,6 @@ tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
 
-plugins{
-    id("com.google.gms.google-services") version "4.4.4" apply false
+plugins {
+    id("com.google.gms.google-services") version "4.4.2" apply false
 }

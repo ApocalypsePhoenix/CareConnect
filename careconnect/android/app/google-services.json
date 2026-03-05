@@ -12,7 +12,20 @@
           "package_name": "com.example.careconnect"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "370726987589-ljnrmnqqfjdhs38d969k0ugp6dk0t870.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.careconnect",
+            "certificate_hash": "e0c682eecf7e7b1582ede61ec84e5ca19bcbe6d5"
+          }
+        },
+        {
+          "client_id": "370726987589-n9ur6gi5h4cup87u9m2es2t1lhbekcil.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBoL__14tUMVXsy4LZNRz9mBvP4vehw99c"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "370726987589-n9ur6gi5h4cup87u9m2es2t1lhbekcil.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
