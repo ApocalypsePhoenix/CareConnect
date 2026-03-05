@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/mysql_api_service.dart';
 import 'login_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -80,11 +81,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void _onIcChanged() {
     String ic = _icController.text.replaceAll('-', '');
     if (ic.length == 12) {
-      // 1. Detect Gender (Last digit: Odd = Male, Even = Female)
       int lastDigit = int.parse(ic.substring(11));
       String detectedGender = (lastDigit % 2 == 0) ? 'Female' : 'Male';
 
-      // 2. Detect Age (YYMMDD)
       int yearShort = int.parse(ic.substring(0, 2));
       int currentYearFull = DateTime.now().year;
       int currentYearShort = currentYearFull % 100;
@@ -96,6 +95,34 @@ class _SignUpScreenState extends State<SignUpScreen> {
         _selectedGender = detectedGender;
         _ageController.text = detectedAge.toString();
       });
+    }
+  }
+
+  // Google Sign-Up Logic
+  Future<void> _handleGoogleSignUp() async {
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      
+      if (googleUser != null) {
+        setState(() {
+          _emailController.text = googleUser.email; 
+          if (_nameController.text.isEmpty) {
+            _nameController.text = googleUser.displayName ?? "";
+          }
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Google account linked! Please set a password for CareConnect.'))
+        );
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Google Sign-In failed: $error'))
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -352,7 +379,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text('Account Setup', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+        const SizedBox(height: 15),
+        
+        // Google Sign-Up Button
+        OutlinedButton.icon(
+          onPressed: _isLoading ? null : _handleGoogleSignUp,
+          icon: const Icon(Icons.login, color: Color(0xFF6B3F69)),
+          label: const Text('Continue with Google', style: TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            side: const BorderSide(color: Color(0xFF6B3F69)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          ),
+        ),
+        
         const SizedBox(height: 20),
+        const Row(
+          children: [
+            Expanded(child: Divider()),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: Text("OR", style: TextStyle(color: Colors.grey, fontSize: 12)),
+            ),
+            Expanded(child: Divider()),
+          ],
+        ),
+        const SizedBox(height: 20),
+        
         _buildTextField(controller: _emailController, label: 'Email Address', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 15),
         _buildTextField(controller: _passwordController, label: 'Password', icon: Icons.lock_outline, isPassword: true),
