@@ -15,7 +15,7 @@ class RecipientData {
   final ageController = TextEditingController();
   final needsController = TextEditingController();
   String? selectedRelationship;
-  String? selectedCondition; 
+  String? selectedCondition; // Added to store the dropdown selection
 
   void dispose() {
     nameController.dispose();
@@ -45,16 +45,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  // --- Controllers for Section 3 (WORKER) ---
+  final Map<String, bool> _profInfo = {
+    'Mobility Service': false,
+    'Physiotherapy/Rehabilitation': false,
+    'Daily Assistance/Nursing Care': false,
+  };
+  bool _termsConfirmed = false;
+
   // --- Recipient Management (CLIENT) ---
   bool _isRegisteringForSelf = true;
   List<RecipientData> _recipients = [RecipientData()];
 
+  // Medical conditions for the dropdown
   final List<String> _medicalConditions = [
     'High Blood Pressure',
     'Heart Disease & Stroke',
     'Diabetes',
     'Others'
   ];
+
+  int get _totalSections => 3;
 
   @override
   void initState() {
@@ -77,7 +88,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  // Malaysian MyKad Auto-Detection Logic
+ // Malaysian MyKad Auto-Detection Logic
   void _onIcChanged() {
     String ic = _icController.text.replaceAll('-', '');
     if (ic.length == 12) {
@@ -112,7 +123,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
             _nameController.text = googleUser.displayName ?? "";
           }
         });
-
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Google account linked! Please set a password for CareConnect.'))
         );
@@ -142,7 +152,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   void _nextSection() {
-    if (_currentSection < 3 - 1) {
+    if (_currentSection < _totalSections - 1) {
       setState(() => _currentSection++);
       _pageController.animateToPage(_currentSection,
           duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
@@ -165,26 +175,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
+    if (_selectedRole == 'Worker' && !_termsConfirmed) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please confirm information is true')));
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     List<Map<String, dynamic>> recipientsList = [];
-    if (_isRegisteringForSelf) {
-      recipientsList.add({
-        "name": _nameController.text,
-        "age": _ageController.text.isEmpty ? "0" : _ageController.text, 
-        "relationship": "Self",
-        "medical_condition": _recipients[0].selectedCondition ?? "None",
-        "special_needs": _recipients[0].needsController.text,
-      });
-    } else {
-      for (var r in _recipients) {
+    if (_selectedRole == 'Client') {
+      if (_isRegisteringForSelf) {
         recipientsList.add({
-          "name": r.nameController.text,
-          "age": r.ageController.text,
-          "relationship": r.selectedRelationship,
-          "medical_condition": r.selectedCondition ?? "Others",
-          "special_needs": r.needsController.text,
+          "name": _nameController.text,
+          "age": _ageController.text.isEmpty ? "0" : _ageController.text, 
+          "relationship": "Self",
+          "medical_condition": _recipients[0].selectedCondition ?? "Others",
+          "special_needs": _recipients[0].needsController.text,
         });
+      } else {
+        for (var r in _recipients) {
+          recipientsList.add({
+            "name": r.nameController.text,
+            "age": r.ageController.text,
+            "relationship": r.selectedRelationship,
+            "medical_condition": r.selectedCondition ?? "Others",
+            "special_needs": r.needsController.text,
+          });
+        }
       }
     }
 
@@ -199,6 +216,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       "password": _passwordController.text,
       "role": _selectedRole,
       "recipients": recipientsList,
+      "worker_services": _selectedRole == 'Worker' ? _profInfo : null,
     };
 
     final result = await MysqlApiService.registerClient(registrationData);
@@ -248,14 +266,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         children: [
                           if (_currentSection == 0) _buildRoleToggle(),
                           SizedBox(
-                            height: 520,
+                            height: 520, 
                             child: PageView(
                               controller: _pageController,
                               physics: const NeverScrollableScrollPhysics(),
                               children: [
                                 _buildSection1(),
                                 _buildSection2(),
-                                _buildSection3Client(),
+                                _selectedRole == 'Worker' ? _buildSection3Worker() : _buildSection3Client(),
                               ],
                             ),
                           ),
@@ -295,7 +313,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         const SizedBox(height: 10),
         Text('${_selectedRole.toUpperCase()} REGISTRATION',
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2, color: Colors.white)),
-        Text('Section ${_currentSection + 1} of 3',
+        Text('Section ${_currentSection + 1} of $_totalSections',
             style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
       ],
     );
@@ -343,29 +361,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
           const SizedBox(height: 15),
           _buildTextField(controller: _nameController, label: 'Full Name', icon: Icons.person_outline),
           const SizedBox(height: 12),
-          _buildTextField(
-            controller: _icController, 
-            label: 'I/C Number (e.g. 950512105531)', 
-            icon: Icons.badge_outlined,
-            keyboardType: TextInputType.number
-          ),
+          _buildTextField(controller: _icController, label: 'I/C or Passport Number', icon: Icons.badge_outlined),
           const SizedBox(height: 12),
-          _buildTextField(
-            controller: _ageController, 
-            label: 'Age (Auto-detected)', 
-            icon: Icons.cake_outlined, 
-            keyboardType: TextInputType.number,
-            readOnly: true 
-          ),
+          _buildTextField(controller: _ageController, label: 'Your Age', icon: Icons.cake_outlined, keyboardType: TextInputType.number),
           const SizedBox(height: 12),
           _buildTextField(controller: _phoneController, label: 'Phone Number', icon: Icons.phone_android_outlined, keyboardType: TextInputType.phone),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             value: _selectedGender,
-            decoration: _inputDecoration('Gender (Auto-detected)', Icons.wc),
+            decoration: _inputDecoration('Gender', Icons.wc),
             items: ['Male', 'Female'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-            onChanged: null, 
-            disabledHint: Text(_selectedGender ?? "Fill IC first"),
+            onChanged: (val) => setState(() => _selectedGender = val),
           ),
           const SizedBox(height: 12),
           _buildTextField(controller: _addressController, label: 'Current Address', icon: Icons.home_outlined, maxLines: 2),
@@ -379,9 +385,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text('Account Setup', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
-        const SizedBox(height: 15),
-        
-        // Google Sign-Up Button
+        const SizedBox(height: 20),
         OutlinedButton.icon(
           onPressed: _isLoading ? null : _handleGoogleSignUp,
           icon: const Icon(Icons.login, color: Color(0xFF6B3F69)),
@@ -392,7 +396,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           ),
         ),
-        
         const SizedBox(height: 20),
         const Row(
           children: [
@@ -405,7 +408,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ],
         ),
         const SizedBox(height: 20),
-        
         _buildTextField(controller: _emailController, label: 'Email Address', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 15),
         _buildTextField(controller: _passwordController, label: 'Password', icon: Icons.lock_outline, isPassword: true),
@@ -434,6 +436,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
               icon: const Icon(Icons.add_circle_outline, color: Color(0xFF6B3F69)),
               label: const Text('Add Another Recipient', style: TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection3Worker() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Professional Information', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+          const SizedBox(height: 10),
+          _buildServiceCheckboxes(),
+          const SizedBox(height: 20),
+          const Text('Certificate Documents', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+          const SizedBox(height: 10),
+          _buildUploadItem('Profile Picture', Icons.camera_alt_outlined, 'IMAGE'),
+          _buildUploadItem('I/C or Passport', Icons.badge_outlined, 'PDF'),
+          _buildUploadItem('Driving License', Icons.drive_eta_outlined, 'PDF'),
+          _buildUploadItem('Certifications', Icons.workspace_premium_outlined, 'PDF'),
+          const SizedBox(height: 15),
+          _buildTermsCheckbox(),
         ],
       ),
     );
@@ -493,29 +517,66 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             _buildTextField(controller: data.nameController, label: "Full Name", icon: Icons.person_search_outlined),
             const SizedBox(height: 12),
-            _buildTextField(controller: data.ageController, label: "Age", icon: Icons.cake_outlined, keyboardType: TextInputType.number),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              isExpanded: true,
-              value: data.selectedRelationship,
-              decoration: _inputDecoration('Relationship', Icons.people_outline),
-              items: ['Parent', 'Grandparent', 'Spouse', 'Other'].map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 12)))).toList(),
-              onChanged: (val) => setState(() => data.selectedRelationship = val),
+            Row(
+              children: [
+                Expanded(flex: 3, child: _buildTextField(controller: data.ageController, label: "Age", icon: Icons.cake_outlined, keyboardType: TextInputType.number)),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 4,
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: data.selectedRelationship,
+                    decoration: _inputDecoration('Relationship', Icons.people_outline),
+                    items: ['Parent', 'Grandparent', 'Spouse', 'Other'].map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 12)))).toList(),
+                    onChanged: (val) => setState(() => data.selectedRelationship = val),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
           ],
+          // Replaced TextField with DropdownButtonFormField for Medical Condition
           DropdownButtonFormField<String>(
             isExpanded: true,
             value: data.selectedCondition,
             decoration: _inputDecoration('Medical Condition', Icons.medical_information_outlined),
-            items: _medicalConditions.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13)))).toList(),
+            items: _medicalConditions.map((condition) => DropdownMenuItem(
+              value: condition,
+              child: Text(condition, style: const TextStyle(fontSize: 13)),
+            )).toList(),
             onChanged: (val) => setState(() => data.selectedCondition = val),
-            validator: (v) => v == null ? 'Selection required' : null,
+            validator: (v) => v == null ? 'Please select a condition' : null,
           ),
           const SizedBox(height: 12),
           _buildTextField(controller: data.needsController, label: "Special Needs", icon: Icons.note_alt_outlined, maxLines: 2),
         ],
       ),
+    );
+  }
+
+  Widget _buildServiceCheckboxes() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: const Color(0xFFDDC3C3).withOpacity(0.2), borderRadius: BorderRadius.circular(15)),
+      child: Column(
+        children: _profInfo.keys.map((key) => CheckboxListTile(
+              title: Text(key, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+              value: _profInfo[key],
+              activeColor: const Color(0xFF6B3F69),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (v) => setState(() => _profInfo[key] = v!),
+            )).toList(),
+      ),
+    );
+  }
+
+  Widget _buildTermsCheckbox() {
+    return Row(
+      children: [
+        Checkbox(value: _termsConfirmed, activeColor: const Color(0xFF6B3F69), onChanged: (v) => setState(() => _termsConfirmed = v!)),
+        const Expanded(child: Text('I confirm all information and documents are true.', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B3F69)))),
+      ],
     );
   }
 
@@ -535,22 +596,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
         Expanded(
           flex: 2,
           child: ElevatedButton(
-            onPressed: (_currentSection == 3 - 1) ? _handleSignUp : _nextSection,
+            onPressed: (_currentSection == _totalSections - 1) ? _handleSignUp : _nextSection,
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6B3F69), padding: const EdgeInsets.symmetric(vertical: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-            child: Text((_currentSection == 3 - 1) ? 'SIGN UP' : 'NEXT', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+            child: Text((_currentSection == _totalSections - 1) ? 'SIGN UP' : 'NEXT', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTextField({required TextEditingController controller, required String label, required IconData icon, bool isPassword = false, int maxLines = 1, TextInputType keyboardType = TextInputType.text, bool readOnly = false}) {
+  Widget _buildTextField({required TextEditingController controller, required String label, required IconData icon, bool isPassword = false, int maxLines = 1, TextInputType keyboardType = TextInputType.text}) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword,
       keyboardType: keyboardType,
       maxLines: maxLines,
-      readOnly: readOnly,
       style: const TextStyle(fontSize: 14),
       decoration: _inputDecoration(label, icon),
       validator: (v) => v!.isEmpty ? 'Required' : null,
@@ -566,6 +626,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
       contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       filled: true,
       fillColor: Colors.grey[50],
+    );
+  }
+
+  Widget _buildUploadItem(String label, IconData icon, String type) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () {
+          // Placeholder for file picking logic
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xFFDDC3C3)), borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: const Color(0xFF8D5F8C)),
+              const SizedBox(width: 12),
+              Expanded(child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+              const Icon(Icons.add_circle_outline, size: 18, color: Color(0xFFA376A2)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
