@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/mysql_api_service.dart';
+import 'login_screen.dart'; // Added import for the login screen navigation
 
 class ClientDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -29,6 +30,52 @@ class _ClientDashboardState extends State<ClientDashboard> {
         _isLoading = false;
       });
     }
+  }
+
+  // Method to display the logout confirmation popup
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15.0),
+          ),
+          title: const Text(
+            'Logout',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text('Are you sure you want to logout?'),
+          actions: [
+            // "No" Button - Closes the popup
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); 
+              },
+              child: const Text('No', style: TextStyle(color: Colors.grey)),
+            ),
+            // "Yes" Button - Logs out and navigates to Login Screen
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog first
+                
+                // Navigate to Login Screen and remove all previous routes 
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (Route<dynamic> route) => false,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Yes'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -70,8 +117,8 @@ class _ClientDashboardState extends State<ClientDashboard> {
                           CircleAvatar(
                             backgroundColor: Colors.white24,
                             child: IconButton(
-                              icon: const Icon(Icons.person_outline, color: Colors.white),
-                              onPressed: () {},
+                              icon: const Icon(Icons.logout, color: Colors.white), // Changed to logout icon
+                              onPressed: () => _showLogoutDialog(context), // Triggers the logout popup
                             ),
                           ),
                         ],
