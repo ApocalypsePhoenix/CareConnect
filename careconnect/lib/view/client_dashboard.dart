@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/mysql_api_service.dart';
 import 'login_screen.dart'; // Added import for the login screen navigation
+import 'recipient_screen.dart'; // Added import for the new recipient screen
 
 class ClientDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -145,7 +146,21 @@ class _ClientDashboardState extends State<ClientDashboard> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Care Recipients', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
-                      TextButton(onPressed: () {}, child: const Text('Add New')),
+                      TextButton(
+                        onPressed: () {
+                          // Navigate to the new Recipient Screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RecipientScreen(user: widget.user),
+                            ),
+                          ).then((_) {
+                            // Refresh the dashboard list just in case a user was added
+                            _fetchRecipients();
+                          });
+                        }, 
+                        child: const Text('Add New')
+                      ),
                     ],
                   ),
                   const SizedBox(height: 10),
