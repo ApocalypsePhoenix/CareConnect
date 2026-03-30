@@ -43,6 +43,49 @@ class MysqlApiService {
     }
   }
 
+  /// Adds a new care recipient
+  static Future<bool> addRecipient({
+    required int userId,
+    required String name,
+    required String relationship,
+    required String age,
+    required String medicalCondition,
+    required String specialNeeds,
+  }) async {
+    final url = Uri.parse('$_baseUrl/add_recipient.php');
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'user_id': userId,
+          'name': name,
+          'relationship': relationship,
+          'age': int.tryParse(age.trim()) ?? 0,
+          'medical_condition': medicalCondition,
+          'special_needs': specialNeeds,
+        }),
+      );
+
+      print('PHP Add Response Code: ${response.statusCode}');
+      print('PHP Add Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == false && data['message'] != null) {
+          print('PHP Error Message: ${data['message']}');
+        }
+        return data['success'] ?? false;
+      }
+      return false;
+    } catch (e) {
+      print('Error adding recipient: $e');
+      return false;
+    }
+  }
+
   /// Updates an existing care recipient
   static Future<bool> updateRecipient({
     required String id,

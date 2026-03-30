@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/mysql_api_service.dart';
-import 'login_screen.dart'; // Added import for the login screen navigation
-import 'recipient_screen.dart'; // Added import for the new recipient screen
+import 'login_screen.dart'; 
+import 'recipient_screen.dart';
 
 class ClientDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -118,7 +118,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                           CircleAvatar(
                             backgroundColor: Colors.white24,
                             child: IconButton(
-                              icon: const Icon(Icons.logout, color: Colors.white), // Changed to logout icon
+                              icon: const Icon(Icons.logout, color: Colors.white), // logout icon
                               onPressed: () => _showLogoutDialog(context), // Triggers the logout popup
                             ),
                           ),
@@ -187,6 +187,22 @@ class _ClientDashboardState extends State<ClientDashboard> {
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
         currentIndex: 0,
+        type: BottomNavigationBarType.fixed, // Recommended when having more than 3 items
+        onTap: (int index) {
+          // Index 2 corresponds to the 'Recipients' tab
+          if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => RecipientScreen(user: widget.user),
+              ),
+            ).then((_) {
+              // Refresh the dashboard when coming back
+              _fetchRecipients();
+            });
+          }
+          // Later can add logic for index 1 (Bookings) and index 3 (Settings) later
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), label: 'Bookings'),
@@ -242,7 +258,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
       child: const Column(
         children: [
           Icon(Icons.people_outline, size: 40, color: Colors.grey),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Text('No recipients added yet', style: TextStyle(color: Colors.grey)),
         ],
       ),

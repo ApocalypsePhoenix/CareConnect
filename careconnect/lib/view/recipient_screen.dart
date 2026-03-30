@@ -34,29 +34,150 @@ class _RecipientScreenState extends State<RecipientScreen> {
   }
 
   void _showAddRecipientDialog() {
-    // TODO: Build your actual form to insert a new recipient into the database
+    TextEditingController nameController = TextEditingController();
+    TextEditingController ageController = TextEditingController();
+    TextEditingController specialNeedsController = TextEditingController();
+
+    final List<String> relationshipOptions = ['Parent', 'Grandparent', 'Spouse', 'Others'];
+    final List<String> medicalOptions = ['High blood pressure', 'Heart diseases and stroke', 'Diabetes', 'Others'];
+
+    String? selectedRelationship;
+    String? selectedMedicalCondition;
+    bool isSaving = false;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add New Recipient'),
-        content: const Text('Add your form fields (Name, Relationship, Age, etc.) here.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Add recipient functionality coming soon!')),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6B3F69)),
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              insetPadding: const EdgeInsets.all(20),
+              backgroundColor: const Color(0xFFF8F9FA),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text('Add New Care Recipient', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    _buildLabel('Full Name'),
+                    _buildTextField(
+                      controller: nameController,
+                      hintText: 'e.g. John Doe',
+                    ),
+                    const SizedBox(height: 15),
+
+                    _buildLabel('Relationship'),
+                    _buildDropdown(
+                      value: selectedRelationship,
+                      options: relationshipOptions,
+                      onChanged: (val) => setState(() => selectedRelationship = val),
+                    ),
+                    const SizedBox(height: 15),
+
+                    _buildLabel('Age'),
+                    _buildTextField(
+                      controller: ageController,
+                      hintText: 'e.g. 65',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 15),
+
+                    _buildLabel('Medical Conditions'),
+                    _buildDropdown(
+                      value: selectedMedicalCondition,
+                      options: medicalOptions,
+                      onChanged: (val) => setState(() => selectedMedicalCondition = val),
+                    ),
+                    const SizedBox(height: 15),
+
+                    _buildLabel('Special Needs (Optional)'),
+                    _buildTextField(
+                      controller: specialNeedsController,
+                      hintText: 'Any specific requirements or notes...',
+                      maxLines: 4,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Full-width Save Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: isSaving ? null : () async {
+                          if (nameController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter a name.'), backgroundColor: Colors.red),
+                            );
+                            return;
+                          }
+
+                          setState(() => isSaving = true);
+                          
+                          // Call the API service to insert into the database
+                          final success = await MysqlApiService.addRecipient(
+                            userId: int.parse(widget.user['id'].toString()),
+                            name: nameController.text,
+                            relationship: selectedRelationship ?? 'Others',
+                            age: ageController.text,
+                            medicalCondition: selectedMedicalCondition ?? 'Others',
+                            specialNeeds: specialNeedsController.text,
+                          );
+
+                          setState(() => isSaving = false);
+
+                          if (mounted) {
+                            if (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Recipient added successfully!'), backgroundColor: Colors.green),
+                              );
+                              Navigator.pop(context); // Close the popup
+                              _fetchRecipients(); // Refresh your list
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Failed to add recipient.'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6B3F69),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                width: 24, height: 24, 
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                              )
+                            : const Text(
+                                'Save', 
+                                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+        );
+      }
     );
   }
 
@@ -107,21 +228,9 @@ class _RecipientScreenState extends State<RecipientScreen> {
             child: const Text('Close', style: TextStyle(color: Colors.grey, fontSize: 16)),
           ),
           ElevatedButton.icon(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(context); // Close the detail dialog first
-              
-              // Push the new full-screen Edit page
-              final bool? updated = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditRecipientScreen(recipient: recipient),
-                ),
-              );
-
-              // If the user saved changes, refresh the list
-              if (updated == true) {
-                _fetchRecipients();
-              }
+              _showEditRecipientPopup(recipient); // Open the edit popup instead of full screen
             },
             icon: const Icon(Icons.edit, size: 18, color: Colors.white),
             label: const Text('Edit', style: TextStyle(color: Colors.white)),
@@ -132,6 +241,174 @@ class _RecipientScreenState extends State<RecipientScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // Edit Recipient Popup
+  void _showEditRecipientPopup(Map<String, dynamic> recipient) {
+    TextEditingController nameController = TextEditingController(text: recipient['name']?.toString() ?? '');
+    TextEditingController ageController = TextEditingController(text: recipient['age']?.toString() ?? '');
+    TextEditingController specialNeedsController = TextEditingController(text: recipient['special_needs']?.toString() ?? '');
+
+    final List<String> relationshipOptions = ['Parent', 'Grandparent', 'Spouse', 'Others'];
+    final List<String> medicalOptions = ['High blood pressure', 'Heart diseases and stroke', 'Diabetes', 'Others'];
+
+    String? selectedRelationship;
+    String existingRel = recipient['relationship']?.toString().toLowerCase().trim() ?? '';
+    try {
+      selectedRelationship = relationshipOptions.firstWhere((opt) => opt.toLowerCase() == existingRel);
+    } catch (e) {
+      selectedRelationship = 'Others';
+    }
+
+    String? selectedMedicalCondition;
+    String existingMed = recipient['medical_condition']?.toString().toLowerCase().trim() ?? '';
+    try {
+      selectedMedicalCondition = medicalOptions.firstWhere((opt) => opt.toLowerCase() == existingMed);
+    } catch (e) {
+      selectedMedicalCondition = 'Others';
+    }
+
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              insetPadding: const EdgeInsets.all(20),
+              backgroundColor: const Color(0xFFF8F9FA),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () {
+                            Navigator.pop(context); // Close edit dialog
+                            _showRecipientDetails(recipient); // Go back to details
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text('Edit Care Recipient Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    _buildLabel('Full Name'),
+                    _buildTextField(
+                      controller: nameController,
+                      hintText: 'e.g. John Doe',
+                    ),
+                    const SizedBox(height: 15),
+
+                    _buildLabel('Relationship'),
+                    _buildDropdown(
+                      value: selectedRelationship,
+                      options: relationshipOptions,
+                      onChanged: (val) => setState(() => selectedRelationship = val),
+                    ),
+                    const SizedBox(height: 15),
+
+                    _buildLabel('Age'),
+                    _buildTextField(
+                      controller: ageController,
+                      hintText: 'e.g. 65',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 15),
+
+                    _buildLabel('Medical Conditions'),
+                    _buildDropdown(
+                      value: selectedMedicalCondition,
+                      options: medicalOptions,
+                      onChanged: (val) => setState(() => selectedMedicalCondition = val),
+                    ),
+                    const SizedBox(height: 15),
+
+                    _buildLabel('Special Needs (Optional)'),
+                    _buildTextField(
+                      controller: specialNeedsController,
+                      hintText: 'Any specific requirements or notes...',
+                      maxLines: 4,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Full-width Save Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: isSaving ? null : () async {
+                          setState(() => isSaving = true);
+                          
+                          String safeId = recipient['id']?.toString() ?? '';
+                          if (safeId.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Error: Recipient ID is missing.'), backgroundColor: Colors.red),
+                            );
+                            setState(() => isSaving = false);
+                            return;
+                          }
+
+                          // Call the API service to update the database
+                          final success = await MysqlApiService.updateRecipient(
+                            id: safeId,
+                            name: nameController.text,
+                            relationship: selectedRelationship ?? 'Others',
+                            age: ageController.text,
+                            medicalCondition: selectedMedicalCondition ?? 'Others',
+                            specialNeeds: specialNeedsController.text,
+                          );
+
+                          setState(() => isSaving = false);
+
+                          if (mounted) {
+                            if (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Recipient updated successfully!'), backgroundColor: Colors.green),
+                              );
+                              Navigator.pop(context); // Close the popup
+                              _fetchRecipients(); // Refresh your list
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Failed to update recipient.'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6B3F69),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                width: 24, height: 24, 
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                              )
+                            : const Text(
+                                'Save', 
+                                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+        );
+      }
     );
   }
 
@@ -163,6 +440,87 @@ class _RecipientScreenState extends State<RecipientScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // Label builder
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black87),
+      ),
+    );
+  }
+
+  // Text field builder
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: TextStyle(color: Colors.grey.shade400),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF6B3F69), width: 1.5),
+        ),
+      ),
+    );
+  }
+
+  // Dropdown builder
+  Widget _buildDropdown({
+    required String? value,
+    required List<String> options,
+    required Function(String?) onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF6B3F69), width: 1.5),
+        ),
+      ),
+      isExpanded: true,
+      items: options.map((String opt) {
+        return DropdownMenuItem<String>(
+          value: opt,
+          child: Text(opt, overflow: TextOverflow.ellipsis),
+        );
+      }).toList(),
+      onChanged: onChanged,
     );
   }
 
@@ -252,282 +610,6 @@ class _RecipientScreenState extends State<RecipientScreen> {
               label: const Text('Add New', style: TextStyle(color: Colors.white)),
             )
           : null,
-    );
-  }
-}
-
-// ----------------------------------------------------------------------
-// NEW EDIT RECIPIENT SCREEN (Matches your screenshot UI)
-// ----------------------------------------------------------------------
-class EditRecipientScreen extends StatefulWidget {
-  final Map<String, dynamic> recipient;
-
-  const EditRecipientScreen({super.key, required this.recipient});
-
-  @override
-  State<EditRecipientScreen> createState() => _EditRecipientScreenState();
-}
-
-class _EditRecipientScreenState extends State<EditRecipientScreen> {
-  late TextEditingController _nameController;
-  late TextEditingController _ageController;
-  late TextEditingController _specialNeedsController;
-
-  String? _selectedRelationship;
-  String? _selectedMedicalCondition;
-  bool _isSaving = false;
-
-  final List<String> _relationshipOptions = [
-    'Parent', 
-    'Grandparent', 
-    'Spouse', 
-    'Others'
-  ];
-
-  final List<String> _medicalOptions = [
-    'High blood pressure', 
-    'Heart diseases and stroke', 
-    'Diabetes', 
-    'Others'
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    // Convert everything strictly to String to avoid the "type 'int' is not a subtype of type 'String'" cast error
-    _nameController = TextEditingController(text: widget.recipient['name']?.toString() ?? '');
-    _ageController = TextEditingController(text: widget.recipient['age']?.toString() ?? '');
-    _specialNeedsController = TextEditingController(text: widget.recipient['special_needs']?.toString() ?? '');
-
-    // Safely assign relationship value matching one of the dropdown options
-    String existingRel = widget.recipient['relationship']?.toString().toLowerCase().trim() ?? '';
-    try {
-      _selectedRelationship = _relationshipOptions.firstWhere(
-        (opt) => opt.toLowerCase() == existingRel,
-      );
-    } catch (e) {
-      _selectedRelationship = 'Others'; // Fallback if no match is found
-    }
-
-    // Safely assign medical condition matching one of the dropdown options
-    String existingMed = widget.recipient['medical_condition']?.toString().toLowerCase().trim() ?? '';
-    try {
-      _selectedMedicalCondition = _medicalOptions.firstWhere(
-        (opt) => opt.toLowerCase() == existingMed,
-      );
-    } catch (e) {
-      _selectedMedicalCondition = 'Others'; // Fallback if no match is found
-    }
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _ageController.dispose();
-    _specialNeedsController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _saveRecipient() async {
-    setState(() => _isSaving = true);
-    
-    // Convert ID to string defensively
-    String safeId = widget.recipient['id']?.toString() ?? '';
-    
-    if (safeId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: Recipient ID is missing.'), backgroundColor: Colors.red),
-      );
-      setState(() => _isSaving = false);
-      return;
-    }
-
-    // Call the API service to update the database
-    final success = await MysqlApiService.updateRecipient(
-      id: safeId,
-      name: _nameController.text,
-      relationship: _selectedRelationship ?? 'Others',
-      age: _ageController.text,
-      medicalCondition: _selectedMedicalCondition ?? 'Others',
-      specialNeeds: _specialNeedsController.text,
-    );
-    
-    setState(() => _isSaving = false);
-
-    if (mounted) {
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Recipient updated successfully!'), backgroundColor: Colors.green),
-        );
-        Navigator.pop(context, true); // Pop and return true so the previous screen knows to refresh
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update recipient.'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Light grey background
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF6B3F69),
-        title: const Text('Edit Care Recipient Details', style: TextStyle(color: Colors.white, fontSize: 18)),
-        iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildLabel('Full Name'),
-            _buildTextField(
-              controller: _nameController,
-              hintText: 'e.g. John Doe',
-            ),
-            const SizedBox(height: 20),
-
-            _buildLabel('Relationship'),
-            _buildDropdown(
-              value: _selectedRelationship,
-              options: _relationshipOptions,
-              onChanged: (val) => setState(() => _selectedRelationship = val),
-            ),
-            const SizedBox(height: 20),
-
-            _buildLabel('Age'),
-            _buildTextField(
-              controller: _ageController,
-              hintText: 'e.g. 65',
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 20),
-
-            _buildLabel('Medical Conditions'),
-            _buildDropdown(
-              value: _selectedMedicalCondition,
-              options: _medicalOptions,
-              onChanged: (val) => setState(() => _selectedMedicalCondition = val),
-            ),
-            const SizedBox(height: 20),
-
-            _buildLabel('Special Needs (Optional)'),
-            _buildTextField(
-              controller: _specialNeedsController,
-              hintText: 'Any specific requirements or notes...',
-              maxLines: 4,
-            ),
-            const SizedBox(height: 40),
-
-            // Full-width Save Button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _saveRecipient,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6B3F69),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 24, height: 24, 
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                      )
-                    : const Text(
-                        'Save', 
-                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
-                      ),
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Label builder
-  Widget _buildLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(
-        text,
-        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black87),
-      ),
-    );
-  }
-
-  // Text field builder
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hintText,
-    TextInputType keyboardType = TextInputType.text,
-    int maxLines = 1,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: TextStyle(color: Colors.grey.shade400),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF6B3F69), width: 1.5),
-        ),
-      ),
-    );
-  }
-
-  // Dropdown builder
-  Widget _buildDropdown({
-    required String? value,
-    required List<String> options,
-    required Function(String?) onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF6B3F69), width: 1.5),
-        ),
-      ),
-      isExpanded: true,
-      items: options.map((String opt) {
-        return DropdownMenuItem<String>(
-          value: opt,
-          child: Text(opt, overflow: TextOverflow.ellipsis),
-        );
-      }).toList(),
-      onChanged: onChanged,
     );
   }
 }
