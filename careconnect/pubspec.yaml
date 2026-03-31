@@ -21,6 +21,9 @@ dependencies:
   
   # Downgraded and "locked" to 6.1.6 to avoid NDK 27 requirements
   google_sign_in: 6.1.6
+  
+  # Added image_picker to allow profile picture selection
+  image_picker: ^1.0.7
 
 dev_dependencies:
   flutter_test:

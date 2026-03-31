@@ -26,22 +26,57 @@ if (
     try {
         $db->beginTransaction();
 
-        // 1. Create the Main User Account (including age)
-        $userQuery = "INSERT INTO users (name, ic_number, age, phone, gender, address, email, password_hash, role) 
-                      VALUES (:name, :ic, :age, :phone, :gender, :address, :email, :password, :role)";
+        // --- Handle Profile Picture Upload ---
+        $profileImagePath = null;
+        if (!empty($data['profile_image'])) {
+            // Determine folder based on role
+            $roleFolder = (isset($data['role']) && $data['role'] === 'Worker') ? 'workers/' : 'clients/';
+            
+            // File system path (where PHP saves it, relative to the php/ folder)
+            $systemUploadDir = '../images/' . $roleFolder;
+            
+            // Web path (what save in the database to fetch via URL later)
+            $dbImagePath = 'images/' . $roleFolder;
+
+            // Create the directory if it doesn't exist
+            if (!is_dir($systemUploadDir)) {
+                mkdir($systemUploadDir, 0755, true);
+            }
+
+            // Decode the Base64 string sent from Flutter
+            $base64Data = $data['profile_image'];
+            $decodedImage = base64_decode($base64Data);
+
+            if ($decodedImage !== false) {
+                // Generate a unique filename
+                $fileName = uniqid('profile_') . '.jpg';
+                $filePath = $systemUploadDir . $fileName;
+
+                // Save the file to your Hostinger server
+                if (file_put_contents($filePath, $decodedImage)) {
+                    // Save relative web path to DB (e.g., "images/clients/profile_123.jpg")
+                    $profileImagePath = $dbImagePath . $fileName; 
+                }
+            }
+        }
+
+        // 1. Create the Main User Account (including age and profile image)
+        $userQuery = "INSERT INTO users (name, ic_number, age, phone, gender, address, email, password_hash, role, profile_image) 
+                      VALUES (:name, :ic, :age, :phone, :gender, :address, :email, :password, :role, :profile_image)";
         
         $userStmt = $db->prepare($userQuery);
         $password_hash = password_hash($data['password'], PASSWORD_BCRYPT);
 
         $userStmt->bindParam(':name', $data['name']);
         $userStmt->bindParam(':ic', $data['ic_number']);
-        $userStmt->bindParam(':age', $data['age']); // Bind age
+        $userStmt->bindParam(':age', $data['age']); 
         $userStmt->bindParam(':phone', $data['phone']);
         $userStmt->bindParam(':gender', $data['gender']);
         $userStmt->bindParam(':address', $data['address']);
         $userStmt->bindParam(':email', $data['email']);
         $userStmt->bindParam(':password', $password_hash);
         $userStmt->bindParam(':role', $data['role']);
+        $userStmt->bindParam(':profile_image', $profileImagePath); // Bind the new image path
 
         if (!$userStmt->execute()) {
             throw new Exception("Failed to create user account.");

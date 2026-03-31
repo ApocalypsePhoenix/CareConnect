@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/mysql_api_service.dart';
 import 'login_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -31,6 +34,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isLoading = false;
 
   String _selectedRole = 'Client'; 
+
+  // --- Profile Image ---
+  File? _profileImage;
+  final ImagePicker _picker = ImagePicker();
 
   // --- Controllers for Section 1: Personal Information ---
   final _nameController = TextEditingController();
@@ -86,6 +93,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _confirmPasswordController.dispose();
     for (var r in _recipients) r.dispose();
     super.dispose();
+  }
+
+  // Pick Profile Image Logic
+  Future<void> _pickProfileImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 50, // Compress the image slightly to save bandwidth
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _profileImage = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick image: $e')),
+      );
+    }
   }
 
  // Malaysian MyKad Auto-Detection Logic
@@ -182,6 +208,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => _isLoading = true);
 
+    // Convert Image to Base64 String if an image was picked
+    String? base64Image;
+    if (_profileImage != null) {
+      List<int> imageBytes = await _profileImage!.readAsBytes();
+      base64Image = base64Encode(imageBytes);
+    }
+
     List<Map<String, dynamic>> recipientsList = [];
     if (_selectedRole == 'Client') {
       if (_isRegisteringForSelf) {
@@ -215,6 +248,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       "email": _emailController.text,
       "password": _passwordController.text,
       "role": _selectedRole,
+      "profile_image": base64Image, // Include Base64 image in payload
       "recipients": recipientsList,
       "worker_services": _selectedRole == 'Worker' ? _profInfo : null,
     };
@@ -301,14 +335,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget _buildHeader() {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+        GestureDetector(
+          onTap: _pickProfileImage,
+          child: Container(
+            width: 85, // Fixed width/height to ensure circular clipping
+            height: 85,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+            ),
+            child: _profileImage != null
+                ? ClipOval(
+                    child: Image.file(
+                      _profileImage!,
+                      fit: BoxFit.cover,
+                      width: 85,
+                      height: 85,
+                    ),
+                  )
+                : const Center(
+                    child: Icon(Icons.person_add_alt_1_outlined, size: 45, color: Colors.white),
+                  ),
           ),
-          child: const Icon(Icons.person_add_alt_1_outlined, size: 50, color: Colors.white),
         ),
         const SizedBox(height: 10),
         Text('${_selectedRole.toUpperCase()} REGISTRATION',

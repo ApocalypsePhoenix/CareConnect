@@ -18,8 +18,8 @@ $data = json_decode(file_get_contents("php://input"), true);
 
 if (!empty($data['email']) && !empty($data['password'])) {
     try {
-        // Select age as well
-        $query = "SELECT id, name, email, age, password_hash, role FROM users WHERE email = :email LIMIT 1";
+        // ADDED: profile_image is now being selected from the database
+        $query = "SELECT id, name, email, age, password_hash, role, profile_image FROM users WHERE email = :email LIMIT 1";
         $stmt = $db->prepare($query);
         $stmt->bindParam(':email', $data['email']);
         $stmt->execute();
@@ -28,7 +28,7 @@ if (!empty($data['email']) && !empty($data['password'])) {
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (password_verify($data['password'], $row['password_hash'])) {
-                unset($row['password_hash']);
+                unset($row['password_hash']); // Do not send password back to the app
                 http_response_code(200);
                 echo json_encode(array(
                     "success" => true, 

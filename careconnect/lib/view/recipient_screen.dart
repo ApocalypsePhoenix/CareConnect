@@ -26,7 +26,10 @@ class _RecipientScreenState extends State<RecipientScreen> {
     if (mounted) {
       setState(() {
         if (result['success']) {
-          _recipients = result['recipients'];
+          // Filter out the recipient if the relationship is 'Self'
+          _recipients = (result['recipients'] as List)
+              .where((recipient) => recipient['relationship'].toString().toLowerCase() != 'self')
+              .toList();
         }
         _isLoading = false;
       });

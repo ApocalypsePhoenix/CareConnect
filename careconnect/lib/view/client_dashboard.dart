@@ -26,7 +26,10 @@ class _ClientDashboardState extends State<ClientDashboard> {
     if (mounted) {
       setState(() {
         if (result['success']) {
-          _recipients = result['recipients'];
+          // Filter out the recipient if the relationship is 'Self'
+          _recipients = (result['recipients'] as List)
+              .where((recipient) => recipient['relationship'].toString().toLowerCase() != 'self')
+              .toList();
         }
         _isLoading = false;
       });
@@ -108,13 +111,40 @@ class _ClientDashboardState extends State<ClientDashboard> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Hello,', style: TextStyle(color: Colors.white70, fontSize: 16)),
-                              Text(widget.user['name'], style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                            ],
+                          Expanded(
+                            child: Row(
+                              children: [
+                                // Profile Picture Avatar
+                                CircleAvatar(
+                                  radius: 28,
+                                  backgroundColor: Colors.white24,
+                                  backgroundImage: (widget.user['profile_image'] != null && widget.user['profile_image'].toString().isNotEmpty)
+                                      ? NetworkImage('https://arcadiusengine.xyz/careconnect/${widget.user['profile_image']}')
+                                      : null,
+                                  child: (widget.user['profile_image'] == null || widget.user['profile_image'].toString().isEmpty)
+                                      ? const Icon(Icons.person, color: Colors.white, size: 30) // Fallback icon
+                                      : null,
+                                ),
+                                const SizedBox(width: 15),
+                                // Greeting Text
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Hello,', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                                      Text(
+                                        widget.user['name'], 
+                                        style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                                        overflow: TextOverflow.ellipsis, // Prevents overflow if name is long
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 10),
+                          // Logout Button
                           CircleAvatar(
                             backgroundColor: Colors.white24,
                             child: IconButton(
