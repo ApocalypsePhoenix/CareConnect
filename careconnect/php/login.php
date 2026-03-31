@@ -18,8 +18,8 @@ $data = json_decode(file_get_contents("php://input"), true);
 
 if (!empty($data['email']) && !empty($data['password'])) {
     try {
-        // ADDED: profile_image is now being selected from the database
-        $query = "SELECT id, name, email, age, password_hash, role, profile_image FROM users WHERE email = :email LIMIT 1";
+        // ADDED: ic_number, gender, phone, and address are now being selected
+        $query = "SELECT id, name, ic_number, gender, email, age, phone, address, password_hash, role, profile_image FROM users WHERE email = :email LIMIT 1";
         $stmt = $db->prepare($query);
         $stmt->bindParam(':email', $data['email']);
         $stmt->execute();

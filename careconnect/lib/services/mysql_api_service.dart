@@ -32,6 +32,21 @@ class MysqlApiService {
     }
   }
 
+  /// Updates the user's profile information
+  static Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> updateData) async {
+    final url = Uri.parse('$_baseUrl/update_profile.php');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(updateData),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
   /// Fetches all care recipients for a specific client user
   static Future<Map<String, dynamic>> getRecipients(int userId) async {
     final url = Uri.parse('$_baseUrl/get_recipients.php?user_id=$userId');

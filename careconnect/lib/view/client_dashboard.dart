@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/mysql_api_service.dart';
-import 'login_screen.dart'; 
 import 'recipient_screen.dart';
+import 'settingclient_screen.dart'; 
 
 class ClientDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -14,15 +14,18 @@ class ClientDashboard extends StatefulWidget {
 class _ClientDashboardState extends State<ClientDashboard> {
   List<dynamic> _recipients = [];
   bool _isLoading = true;
+  late Map<String, dynamic> _currentUser; // Added to hold and update user state locally
 
   @override
   void initState() {
     super.initState();
+    // Initialize the local user state with the data passed from the login screen
+    _currentUser = Map<String, dynamic>.from(widget.user);
     _fetchRecipients();
   }
 
   Future<void> _fetchRecipients() async {
-    final result = await MysqlApiService.getRecipients(int.parse(widget.user['id'].toString()));
+    final result = await MysqlApiService.getRecipients(int.parse(_currentUser['id'].toString()));
     if (mounted) {
       setState(() {
         if (result['success']) {
@@ -34,52 +37,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
         _isLoading = false;
       });
     }
-  }
-
-  // Method to display the logout confirmation popup
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15.0),
-          ),
-          title: const Text(
-            'Logout',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: const Text('Are you sure you want to logout?'),
-          actions: [
-            // "No" Button - Closes the popup
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); 
-              },
-              child: const Text('No', style: TextStyle(color: Colors.grey)),
-            ),
-            // "Yes" Button - Logs out and navigates to Login Screen
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog first
-                
-                // Navigate to Login Screen and remove all previous routes 
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (Route<dynamic> route) => false,
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Yes'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -114,26 +71,26 @@ class _ClientDashboardState extends State<ClientDashboard> {
                           Expanded(
                             child: Row(
                               children: [
-                                // Profile Picture Avatar
+                                // Profile Picture Avatar - Uses _currentUser now
                                 CircleAvatar(
                                   radius: 28,
                                   backgroundColor: Colors.white24,
-                                  backgroundImage: (widget.user['profile_image'] != null && widget.user['profile_image'].toString().isNotEmpty)
-                                      ? NetworkImage('https://arcadiusengine.xyz/careconnect/${widget.user['profile_image']}')
+                                  backgroundImage: (_currentUser['profile_image'] != null && _currentUser['profile_image'].toString().isNotEmpty)
+                                      ? NetworkImage('https://arcadiusengine.xyz/careconnect/${_currentUser['profile_image']}')
                                       : null,
-                                  child: (widget.user['profile_image'] == null || widget.user['profile_image'].toString().isEmpty)
+                                  child: (_currentUser['profile_image'] == null || _currentUser['profile_image'].toString().isEmpty)
                                       ? const Icon(Icons.person, color: Colors.white, size: 30) // Fallback icon
                                       : null,
                                 ),
                                 const SizedBox(width: 15),
-                                // Greeting Text
+                                // Greeting Text - Uses _currentUser now
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       const Text('Hello,', style: TextStyle(color: Colors.white70, fontSize: 16)),
                                       Text(
-                                        widget.user['name'], 
+                                        _currentUser['name'], 
                                         style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                                         overflow: TextOverflow.ellipsis, // Prevents overflow if name is long
                                       ),
@@ -144,12 +101,14 @@ class _ClientDashboardState extends State<ClientDashboard> {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          // Logout Button
+                          // Notification Button
                           CircleAvatar(
                             backgroundColor: Colors.white24,
                             child: IconButton(
-                              icon: const Icon(Icons.logout, color: Colors.white), // logout icon
-                              onPressed: () => _showLogoutDialog(context), // Triggers the logout popup
+                              icon: const Icon(Icons.notifications_none, color: Colors.white), // notification icon
+                              onPressed: () {
+                                // Add your notification navigation or popup logic here later
+                              },
                             ),
                           ),
                         ],
@@ -182,7 +141,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => RecipientScreen(user: widget.user),
+                              builder: (context) => RecipientScreen(user: _currentUser),
                             ),
                           ).then((_) {
                             // Refresh the dashboard list just in case a user was added
@@ -224,14 +183,29 @@ class _ClientDashboardState extends State<ClientDashboard> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => RecipientScreen(user: widget.user),
+                builder: (context) => RecipientScreen(user: _currentUser),
               ),
             ).then((_) {
               // Refresh the dashboard when coming back
               _fetchRecipients();
             });
           }
-          // Later can add logic for index 1 (Bookings) and index 3 (Settings) later
+          // Index 3 corresponds to the 'Settings' tab
+          else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SettingClientScreen(user: _currentUser),
+              ),
+            ).then((updatedUser) {
+              // If the user updated their profile in Settings, update the dashboard immediately
+              if (updatedUser != null) {
+                setState(() {
+                  _currentUser = Map<String, dynamic>.from(updatedUser);
+                });
+              }
+            });
+          }
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
