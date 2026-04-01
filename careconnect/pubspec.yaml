@@ -24,6 +24,8 @@ dependencies:
   
   # Added image_picker to allow profile picture selection
   image_picker: ^1.0.7
+  geolocator: ^14.0.2
+  geocoding: ^4.0.0
 
 dev_dependencies:
   flutter_test:

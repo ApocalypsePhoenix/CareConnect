@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/mysql_api_service.dart';
 import 'recipient_screen.dart';
 import 'settingclient_screen.dart'; 
+import 'booking_screen.dart'; // Added import for the booking screen
 
 class ClientDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -178,8 +179,17 @@ class _ClientDashboardState extends State<ClientDashboard> {
         currentIndex: 0,
         type: BottomNavigationBarType.fixed, // Recommended when having more than 3 items
         onTap: (int index) {
+          // Index 1 corresponds to the 'Bookings' tab
+          if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BookingScreen(user: _currentUser),
+              ),
+            );
+          }
           // Index 2 corresponds to the 'Recipients' tab
-          if (index == 2) {
+          else if (index == 2) {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -237,7 +247,15 @@ class _ClientDashboardState extends State<ClientDashboard> {
                 const Text('Book a trained worker to assist your loved ones today.', style: TextStyle(fontSize: 13, color: Colors.black54)),
                 const SizedBox(height: 15),
                 ElevatedButton(
-                  onPressed: () {}, // Navigate to Booking Screen
+                  onPressed: () {
+                    // Navigate to Booking Screen when the button is pressed
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => BookingScreen(user: _currentUser),
+                      ),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6B3F69),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
