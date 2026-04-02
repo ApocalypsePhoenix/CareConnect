@@ -18,6 +18,13 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
   List<dynamic> _searchResults = [];
   bool _isSearching = false;
 
+  // Determine if this is a Dropoff to show the Red Pin instead of Blue Dot
+  bool get _isDropoff => widget.title.toLowerCase().contains('destination') || widget.title.toLowerCase().contains('drop-off');
+
+  // Theme Colors replacing Grab Green
+  final Color themePrimary = const Color(0xFF6B3F69);
+  final Color themeLight = const Color(0xFFDDC3C3);
+
   // Grab-Style Live Address Search API (OpenStreetMap Nominatim)
   Future<void> _searchPlaces(String query) async {
     if (query.isEmpty || query.length < 3) {
@@ -27,7 +34,6 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
 
     setState(() => _isSearching = true);
 
-    // Free Geocoding API (Restricted to Malaysia for better local results)
     final url = Uri.parse('https://nominatim.openstreetmap.org/search?q=$query&format=json&limit=5&countrycodes=my');
     
     try {
@@ -43,7 +49,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
     }
   }
 
-  // Auto-Detect GPS (Grab's "Use Current Location")
+  // Auto-Detect GPS
   Future<void> _useCurrentLocation() async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Detecting your GPS location...'), duration: Duration(seconds: 2)),
@@ -59,10 +65,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
         if (permission == LocationPermission.denied) throw Exception('Permissions denied.');
       }
 
-      // 1. Get Coordinates
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-
-      // 2. Convert Coordinates to Address (Reverse Geocoding)
       List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
       
       if (placemarks.isNotEmpty) {
@@ -70,7 +73,6 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
         String formattedAddress = '${place.street}, ${place.locality}, ${place.administrativeArea}';
         if (formattedAddress.startsWith(', ')) formattedAddress = formattedAddress.substring(2);
 
-        // 3. Return the Address AND the Coordinates back to the Booking Screen!
         if (mounted) {
           Navigator.pop(context, {
             'address': formattedAddress,
@@ -86,120 +88,175 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: Text(widget.title, style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
-      ),
-      body: Column(
-        children: [
-          // 1. Search Bar Area
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 5, offset: const Offset(0, 3))],
-            ),
-            child: TextField(
-              controller: _searchController,
-              autofocus: true,
-              onChanged: _searchPlaces,
-              decoration: InputDecoration(
-                hintText: 'Search location or building...',
-                prefixIcon: const Icon(Icons.search, color: Color(0xFF6B3F69)),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.grey),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchResults = []);
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(vertical: 15),
-              ),
-            ),
-          ),
+    bool isTyping = _searchController.text.isNotEmpty;
 
-          // 2. Search Results OR Default Options
-          Expanded(
-            child: _searchResults.isEmpty && _searchController.text.isEmpty
-                ? _buildDefaultOptions() // Show Current Location, Map, Home when not searching
-                : _buildSearchResults(), // Show Live Geocoding Results when typing
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // 1. GRAB STYLE HEADER & SEARCH BAR
+              Padding(
+                padding: const EdgeInsets.fromLTRB(5, 10, 20, 10),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.black),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    // Location Indicator (Blue Dot or Red Pin)
+                    Container(
+                      margin: const EdgeInsets.only(right: 15),
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: _isDropoff ? Colors.red : Colors.blue,
+                        shape: _isDropoff ? BoxShape.rectangle : BoxShape.circle,
+                        borderRadius: _isDropoff ? BorderRadius.circular(2) : null,
+                      ),
+                    ),
+                    // Search Field
+                    Expanded(
+                      child: Container(
+                        height: 45,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: isTyping ? themePrimary : Colors.grey.shade300, width: 1.5),
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          autofocus: true,
+                          onChanged: _searchPlaces,
+                          decoration: InputDecoration(
+                            hintText: widget.title,
+                            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                            suffixIcon: isTyping
+                                ? IconButton(
+                                    icon: const Icon(Icons.cancel, color: Colors.grey, size: 20),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() => _searchResults = []);
+                                    },
+                                  )
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (!isTyping) ...[
+                      const SizedBox(width: 15),
+                      const Icon(Icons.add_circle_outline, color: Colors.black),
+                    ]
+                  ],
+                ),
+              ),
+
+              // 2. TABS OR LIVE SEARCH RESULTS
+              Expanded(
+                child: isTyping 
+                  ? _buildLiveSearchResults() 
+                  : Column(
+                      children: [
+                        // Grab Style Tabs
+                        TabBar(
+                          labelColor: themePrimary,
+                          unselectedLabelColor: Colors.grey,
+                          indicatorColor: themePrimary,
+                          indicatorWeight: 3,
+                          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                          tabs: const [
+                            Tab(text: 'Recent'),
+                            Tab(text: 'Suggested'),
+                            Tab(text: 'Saved'),
+                          ],
+                        ),
+                        Expanded(
+                          child: TabBarView(
+                            children: [
+                              _buildRecentTab(),
+                              const Center(child: Text('No suggestions yet', style: TextStyle(color: Colors.grey))),
+                              _buildSavedTab(),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+              ),
+            ],
           ),
-        ],
+        ),
+        
+        // 3. GRAB STYLE FLOATING "CHOOSE ON MAP" BUTTON
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+        floatingActionButton: isTyping ? null : FloatingActionButton.extended(
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Map Interface opening...')));
+          },
+          backgroundColor: themeLight.withOpacity(0.5),
+          elevation: 0,
+          label: Text('Choose on Map', style: TextStyle(color: themePrimary, fontWeight: FontWeight.bold)),
+          icon: Icon(Icons.map_outlined, color: themePrimary),
+        ),
       ),
     );
   }
 
-  // The Grab-style default options before you start typing
-  Widget _buildDefaultOptions() {
+  // --- TAB CONTENTS ---
+
+  Widget _buildRecentTab() {
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.only(top: 10, bottom: 80), // bottom padding for floating button
       children: [
-        // OPTION A: Auto Detect Location
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFDDC3C3).withOpacity(0.3), shape: BoxShape.circle),
-            child: const Icon(Icons.my_location, color: Color(0xFF6B3F69)),
-          ),
-          title: const Text('Use Current Location', style: TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: const Text('Auto-detect using GPS', style: TextStyle(fontSize: 12, color: Colors.grey)),
+        _buildGrabListTile(
+          icon: Icons.my_location,
+          iconColor: Colors.blue,
+          title: 'Current Location',
+          subtitle: 'Auto-detect using GPS',
           onTap: _useCurrentLocation,
         ),
-        const Divider(),
-        
-        // OPTION B: Drop a Pin (Placeholder for Map SDK integration)
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
-            child: const Icon(Icons.map_outlined, color: Colors.black54),
-          ),
-          title: const Text('Choose on Map', style: TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: const Text('Drag a pin to your exact location', style: TextStyle(fontSize: 12, color: Colors.grey)),
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Map Interface will be connected here!')));
-          },
-        ),
-        const Divider(),
-
-        // OPTION C: Saved Places
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 10),
-          child: Text('Saved Places', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-        ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.home_outlined, color: Colors.black54),
-          title: const Text('Home'),
-          onTap: () {
-            // Simulated Geocoding for "Home"
-            Navigator.pop(context, {
-              'address': '10, Lorong 2, Bandar Tasek Mutiara',
-              'lat': 5.2796,
-              'lng': 100.4908,
-            });
-          },
+        const Divider(height: 1),
+        _buildGrabListTile(
+          icon: Icons.access_time_filled,
+          iconColor: themePrimary,
+          title: 'UUM - Dewan Penginapan Pelajar TM',
+          subtitle: '3.23km • Persiaran Perdana, Universiti Utara Malaysia...',
+          onTap: () => _mockSelectLocation('UUM - Dewan Penginapan Pelajar TM', 6.4603, 100.5010),
         ),
       ],
     );
   }
 
-  // The Live Results from typing
-  Widget _buildSearchResults() {
-    if (_isSearching) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF6B3F69)));
-    }
+  Widget _buildSavedTab() {
+    return ListView(
+      padding: const EdgeInsets.only(top: 10),
+      children: [
+        _buildGrabListTile(
+          icon: Icons.favorite,
+          iconColor: Colors.red,
+          title: 'Home',
+          subtitle: '10, Lorong 2, Bandar Tasek Mutiara',
+          onTap: () => _mockSelectLocation('10, Lorong 2, Bandar Tasek Mutiara', 5.2796, 100.4908),
+        ),
+        const Divider(height: 1),
+        _buildGrabListTile(
+          icon: Icons.favorite,
+          iconColor: Colors.red,
+          title: 'Bukit Immigration',
+          subtitle: '12.56km • Bukit Kayu Hitam Customs & Immigration...',
+          onTap: () => _mockSelectLocation('Bukit Kayu Hitam Customs & Immigration', 6.5204, 100.4190),
+        ),
+      ],
+    );
+  }
+
+  // Live Results from OpenStreetMap
+  Widget _buildLiveSearchResults() {
+    if (_isSearching) return Center(child: CircularProgressIndicator(color: themePrimary));
 
     return ListView.separated(
       itemCount: _searchResults.length,
@@ -208,17 +265,16 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
         final result = _searchResults[index];
         final displayName = result['display_name'].toString();
         
-        // Split the long address for cleaner Grab-style UI (Main Title + Subtitle)
         final parts = displayName.split(', ');
         final mainText = parts.first;
         final subText = parts.length > 1 ? parts.sublist(1).join(', ') : '';
 
-        return ListTile(
-          leading: const Icon(Icons.location_on, color: Color(0xFF6B3F69)),
-          title: Text(mainText, style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text(subText, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+        return _buildGrabListTile(
+          icon: Icons.location_on,
+          iconColor: Colors.grey.shade600,
+          title: mainText,
+          subtitle: subText,
           onTap: () {
-            // When user clicks a search result, pass the Address AND Coordinates back!
             Navigator.pop(context, {
               'address': displayName,
               'lat': double.parse(result['lat']),
@@ -228,5 +284,25 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
         );
       },
     );
+  }
+
+  // Reusable Grab-Style List Tile
+  Widget _buildGrabListTile({required IconData icon, required Color iconColor, required String title, required String subtitle, required VoidCallback onTap}) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+      leading: Icon(icon, color: iconColor, size: 28),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+      subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+      trailing: const Icon(Icons.more_vert, color: Colors.grey),
+      onTap: onTap,
+    );
+  }
+
+  void _mockSelectLocation(String address, double lat, double lng) {
+    Navigator.pop(context, {
+      'address': address,
+      'lat': lat,
+      'lng': lng,
+    });
   }
 }

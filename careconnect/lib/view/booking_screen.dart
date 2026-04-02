@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/mysql_api_service.dart';
-import 'location_search_screen.dart'; // Import the new Grab-style search screen
+import 'location_search_screen.dart'; 
 
 class BookingScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -25,7 +25,7 @@ class _BookingScreenState extends State<BookingScreen> {
   late TextEditingController _primaryLocationController; 
   final TextEditingController _dropoffController = TextEditingController(); 
   
-  // SECRETS: These hold the actual Coordinates (Geocoding logic!)
+  // Hold the actual Coordinates (Geocoding logic!)
   double? _pickupLat;
   double? _pickupLng;
   double? _dropoffLat;
@@ -73,20 +73,20 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  // Opens the Grab-Style Search Screen
+  // Opens the LocationSearch Screen
   Future<void> _openLocationSearch(String title, TextEditingController controller, bool isDropoff) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => LocationSearchScreen(title: title)),
     );
 
-    // If the user selected a location on the next screen...
+    // If the user selected a location on the next screen
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
         // 1. Update the UI text box
         controller.text = result['address'];
         
-        // 2. Secretly store the actual Coordinates for the backend mapping!
+        // 2. Store the actual Coordinates for the backend mapping
         if (isDropoff) {
           _dropoffLat = result['lat'];
           _dropoffLng = result['lng'];
@@ -112,7 +112,7 @@ class _BookingScreenState extends State<BookingScreen> {
       coordinateProof += '\nDropoff Lat/Lng: $_dropoffLat, $_dropoffLng';
     }
 
-    // You will send these precise Coordinates to your MySQL database later!
+    // Send these precise Coordinates to MySQL database later
     print(coordinateProof);
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -141,7 +141,7 @@ class _BookingScreenState extends State<BookingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('1. Select Service', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                  const Text('Select Service', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                   const SizedBox(height: 10),
                   _buildDropdown(
                     value: _selectedService,
@@ -153,7 +153,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   
                   if (_selectedService != null) ...[
                     const Divider(height: 40, thickness: 1),
-                    const Text('Client & Patient Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                    const Text('Client & Recipient Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                     const SizedBox(height: 10),
                     
                     Container(
@@ -204,16 +204,13 @@ class _BookingScreenState extends State<BookingScreen> {
                     ],
 
                     const Divider(height: 40, thickness: 1),
-
-                    // ==========================================
-                    // GRAB-STYLE LOCATION BUTTONS
-                    // ==========================================
+                    // LOCATION BUTTONS
                     const Text('Location Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                     const SizedBox(height: 10),
 
                     if (_selectedService == 'Mobility Service') ...[
                       _buildClickableLocationField(
-                        label: 'Pickup Location', 
+                        label: 'Current Location', 
                         controller: _primaryLocationController,
                         onTap: () => _openLocationSearch('Set Pickup Location', _primaryLocationController, false),
                       ),
