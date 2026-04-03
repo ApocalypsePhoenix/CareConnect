@@ -36,6 +36,54 @@ class _RecipientScreenState extends State<RecipientScreen> {
     }
   }
 
+  // --- NEW: Delete Logic with Confirmation Dialog ---
+  Future<void> _deleteRecipient(String id) async {
+    // 1. Show confirmation dialog
+    bool confirmDelete = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Recipient', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to delete this care recipient? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false), // Cancel
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true), // Confirm
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    ) ?? false; // Default to false if user taps outside the box
+
+    // 2. If confirmed, proceed to delete via API
+    if (confirmDelete) {
+      setState(() => _isLoading = true);
+      
+      final success = await MysqlApiService.deleteRecipient(id);
+      
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Recipient deleted successfully!'), backgroundColor: Colors.green),
+          );
+          _fetchRecipients(); // Refresh list to show it was removed
+        } else {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete recipient.'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
   void _showAddRecipientDialog() {
     TextEditingController nameController = TextEditingController();
     TextEditingController ageController = TextEditingController();
@@ -226,6 +274,14 @@ class _RecipientScreenState extends State<RecipientScreen> {
           ),
         ),
         actions: [
+          // --- UPDATED: Added Delete Button inside the Details view ---
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close details view first
+              _deleteRecipient(recipient['id'].toString()); // Open delete confirmation
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Close', style: TextStyle(color: Colors.grey, fontSize: 16)),
@@ -233,7 +289,7 @@ class _RecipientScreenState extends State<RecipientScreen> {
           ElevatedButton.icon(
             onPressed: () {
               Navigator.pop(context); // Close the detail dialog first
-              _showEditRecipientPopup(recipient); // Open the edit popup instead of full screen
+              _showEditRecipientPopup(recipient); // Open the edit popup
             },
             icon: const Icon(Icons.edit, size: 18, color: Colors.white),
             label: const Text('Edit', style: TextStyle(color: Colors.white)),

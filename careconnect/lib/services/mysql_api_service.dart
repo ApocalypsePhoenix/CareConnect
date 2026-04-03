@@ -47,6 +47,25 @@ class MysqlApiService {
     }
   }
 
+  /// Changes the user's password securely
+  static Future<Map<String, dynamic>> changePassword(String userId, String currentPassword, String newPassword) async {
+    final url = Uri.parse('$_baseUrl/change_password.php');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_id': userId,
+          'current_password': currentPassword,
+          'new_password': newPassword,
+        }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
   /// Fetches all care recipients for a specific client user
   static Future<Map<String, dynamic>> getRecipients(int userId) async {
     final url = Uri.parse('$_baseUrl/get_recipients.php?user_id=$userId');
@@ -144,6 +163,27 @@ class MysqlApiService {
       return false;
     } catch (e) {
       print('Error updating recipient: $e');
+      return false;
+    }
+  }
+
+  /// Deletes an existing care recipient
+  static Future<bool> deleteRecipient(String id) async {
+    final url = Uri.parse('$_baseUrl/delete_recipient.php');
+    try {
+      final response = await http.post(
+        url,
+        // We send this as standard form data so the PHP can read it with $_POST['id']
+        body: {'id': id},
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['success'] ?? false;
+      }
+      return false;
+    } catch (e) {
+      print("Error deleting recipient: $e");
       return false;
     }
   }
