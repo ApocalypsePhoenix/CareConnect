@@ -5,7 +5,8 @@ class MysqlApiService {
   static const String _baseUrl = 'https://arcadiusengine.xyz/careconnect/php';
 
   static Future<Map<String, dynamic>> registerClient(Map<String, dynamic> clientData) async {
-    final url = Uri.parse('$_baseUrl/register_client.php');
+    // UPDATED: Now points to the universal register.php file
+    final url = Uri.parse('$_baseUrl/register.php');
     try {
       final response = await http.post(
         url,

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart'; // Added File Picker for PDFs
 import '../services/mysql_api_service.dart';
 import 'login_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -60,6 +61,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
   };
   bool _termsConfirmed = false;
 
+  // --- Worker Documents (PDFs) ---
+  File? _icFile;
+  File? _licenseFile;
+  File? _certFile;
+
   // --- Recipient Management (CLIENT) ---
   bool _isRegisteringForSelf = true;
   List<RecipientData> _recipients = [RecipientData()];
@@ -95,7 +101,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  // Pick Profile Image Logic
+  // Pick Profile Image Logic (Keeps using image gallery)
   Future<void> _pickProfileImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -110,6 +116,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick image: $e')),
+      );
+    }
+  }
+
+  // Pick Document Logic (Strictly restricted to PDFs)
+  Future<void> _pickDocumentFile(String docType) async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'], // ONLY allow PDFs
+      );
+
+      if (result != null && result.files.single.path != null) {
+        setState(() {
+          if (docType == 'IC') _icFile = File(result.files.single.path!);
+          if (docType == 'License') _licenseFile = File(result.files.single.path!);
+          if (docType == 'Cert') _certFile = File(result.files.single.path!);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick document: $e')),
       );
     }
   }
@@ -208,12 +236,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => _isLoading = true);
 
-    // Convert Image to Base64 String if an image was picked
-    String? base64Image;
-    if (_profileImage != null) {
-      List<int> imageBytes = await _profileImage!.readAsBytes();
-      base64Image = base64Encode(imageBytes);
-    }
+    // Convert Image & PDFs to Base64 Strings if picked
+    String? base64Profile, base64Ic, base64License, base64Cert;
+    if (_profileImage != null) base64Profile = base64Encode(await _profileImage!.readAsBytes());
+    if (_icFile != null) base64Ic = base64Encode(await _icFile!.readAsBytes());
+    if (_licenseFile != null) base64License = base64Encode(await _licenseFile!.readAsBytes());
+    if (_certFile != null) base64Cert = base64Encode(await _certFile!.readAsBytes());
 
     List<Map<String, dynamic>> recipientsList = [];
     if (_selectedRole == 'Client') {
@@ -248,7 +276,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       "email": _emailController.text,
       "password": _passwordController.text,
       "role": _selectedRole,
-      "profile_image": base64Image, // Include Base64 image in payload
+      "profile_image": base64Profile, 
+      "ic_image": base64Ic,
+      "license_image": base64License,
+      "cert_image": base64Cert,
       "recipients": recipientsList,
       "worker_services": _selectedRole == 'Worker' ? _profInfo : null,
     };
@@ -501,10 +532,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
           const SizedBox(height: 20),
           const Text('Certificate Documents', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
           const SizedBox(height: 10),
-          _buildUploadItem('Profile Picture', Icons.camera_alt_outlined, 'IMAGE'),
-          _buildUploadItem('I/C or Passport', Icons.badge_outlined, 'PDF'),
-          _buildUploadItem('Driving License', Icons.drive_eta_outlined, 'PDF'),
-          _buildUploadItem('Certifications', Icons.workspace_premium_outlined, 'PDF'),
+          
+          // Replaced with PDF Pickers
+          _buildUploadItem('Profile Picture (Image)', Icons.camera_alt_outlined, _profileImage, _pickProfileImage),
+          _buildUploadItem('I/C or Passport (PDF)', Icons.picture_as_pdf_outlined, _icFile, () => _pickDocumentFile('IC')),
+          _buildUploadItem('Driving License (PDF)', Icons.picture_as_pdf_outlined, _licenseFile, () => _pickDocumentFile('License')),
+          _buildUploadItem('Certifications (PDF)', Icons.picture_as_pdf_outlined, _certFile, () => _pickDocumentFile('Cert')),
+          
           const SizedBox(height: 15),
           _buildTermsCheckbox(),
         ],
@@ -678,23 +712,39 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _buildUploadItem(String label, IconData icon, String type) {
+  Widget _buildUploadItem(String label, IconData icon, File? selectedFile, VoidCallback onTap) {
+    bool isUploaded = selectedFile != null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
-        onTap: () {
-          // Placeholder for file picking logic
-        },
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xFFDDC3C3)), borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: isUploaded ? Colors.green.withOpacity(0.1) : Colors.white,
+            border: Border.all(color: isUploaded ? Colors.green : const Color(0xFFDDC3C3)),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Row(
             children: [
-              Icon(icon, size: 18, color: const Color(0xFF8D5F8C)),
+              Icon(icon, size: 20, color: isUploaded ? Colors.green : const Color(0xFF8D5F8C)),
               const SizedBox(width: 12),
-              Expanded(child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-              const Icon(Icons.add_circle_outline, size: 18, color: Color(0xFFA376A2)),
+              Expanded(
+                child: Text(
+                  isUploaded ? '$label (Uploaded)' : label, 
+                  style: TextStyle(
+                    fontSize: 13, 
+                    fontWeight: FontWeight.bold,
+                    color: isUploaded ? Colors.green[700] : Colors.black87
+                  )
+                )
+              ),
+              Icon(
+                isUploaded ? Icons.check_circle : Icons.add_circle_outline, 
+                size: 20, 
+                color: isUploaded ? Colors.green : const Color(0xFFA376A2)
+              ),
             ],
           ),
         ),
