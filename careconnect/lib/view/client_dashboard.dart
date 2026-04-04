@@ -48,7 +48,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
         slivers: [
           // Header with Welcome Message
           SliverAppBar(
-            expandedHeight: 200,
+            expandedHeight: 120, // Reduced height for a sleeker look matching Worker Dashboard
             floating: false,
             pinned: true,
             automaticallyImplyLeading: false,
@@ -62,9 +62,10 @@ class _ClientDashboardState extends State<ClientDashboard> {
                   ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 80, 24, 20),
+                  padding: const EdgeInsets.fromLTRB(24, 60, 24, 20), // Adjusted top padding
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center, // Centered vertically
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -166,6 +167,30 @@ class _ClientDashboardState extends State<ClientDashboard> {
                   const Text('Active Services', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                   const SizedBox(height: 15),
                   _buildBookingStatusCard(),
+                  const SizedBox(height: 30), // Added spacing
+
+                  // NEW: Booking History Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Booking History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                      TextButton(
+                        onPressed: () {
+                          // Navigate to the placeholder history screen for now
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PlaceholderClientHistoryScreen(),
+                            ),
+                          );
+                        }, 
+                        child: const Text('View All')
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  _buildBookingHistoryCard(),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -348,6 +373,41 @@ class _ClientDashboardState extends State<ClientDashboard> {
           ),
         ],
       ),
+    );
+  }
+
+  // --- NEW: History Card Widget ---
+  Widget _buildBookingHistoryCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25), border: Border.all(color: Colors.grey.shade200)),
+      child: const Row(
+        children: [
+          Icon(Icons.check_circle_outline, size: 30, color: Colors.green),
+          SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('No Past History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text('Your completed care requests and past bookings will appear here.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// TEMPORARY PLACEHOLDER SCREENS 
+class PlaceholderClientHistoryScreen extends StatelessWidget {
+  const PlaceholderClientHistoryScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Booking History'), backgroundColor: const Color(0xFF6B3F69), foregroundColor: Colors.white),
+      body: const Center(child: Text('Client History Screen Coming Soon!')),
     );
   }
 }

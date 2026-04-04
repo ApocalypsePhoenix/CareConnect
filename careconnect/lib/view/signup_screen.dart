@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart'; // Added File Picker for PDFs
+import 'package:file_picker/file_picker.dart';
 import '../services/mysql_api_service.dart';
 import 'login_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -19,7 +19,7 @@ class RecipientData {
   final ageController = TextEditingController();
   final needsController = TextEditingController();
   String? selectedRelationship;
-  String? selectedCondition; // Added to store the dropdown selection
+  String? selectedCondition; 
 
   void dispose() {
     nameController.dispose();
@@ -36,7 +36,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   String _selectedRole = 'Client'; 
 
-  // --- Profile Image ---
+  // --- General Profile Image (Top Avatar) ---
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
 
@@ -61,7 +61,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   };
   bool _termsConfirmed = false;
 
-  // --- Worker Documents (PDFs) ---
+  // --- Worker Documents (Images & PDFs) ---
+  File? _passportImage; // NEW: Separate variable for the passport photo
   File? _icFile;
   File? _licenseFile;
   File? _certFile;
@@ -70,7 +71,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isRegisteringForSelf = true;
   List<RecipientData> _recipients = [RecipientData()];
 
-  // Medical conditions for the dropdown
   final List<String> _medicalConditions = [
     'High Blood Pressure',
     'Heart Disease & Stroke',
@@ -101,12 +101,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  // Pick Profile Image Logic (Keeps using image gallery)
+  // Pick General Profile Image Logic
   Future<void> _pickProfileImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 50, // Compress the image slightly to save bandwidth
+        imageQuality: 50, 
       );
       if (pickedFile != null) {
         setState(() {
@@ -114,18 +114,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick image: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
     }
   }
 
-  // Pick Document Logic (Strictly restricted to PDFs)
+  // NEW: Pick Passport Style Image Logic
+  Future<void> _pickPassportImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 50, 
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _passportImage = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to pick passport image: $e')));
+    }
+  }
+
+  // Pick Document Logic (Strictly PDFs)
   Future<void> _pickDocumentFile(String docType) async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf'], // ONLY allow PDFs
+        allowedExtensions: ['pdf'], 
       );
 
       if (result != null && result.files.single.path != null) {
@@ -136,23 +151,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick document: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to pick document: $e')));
     }
   }
 
- // Malaysian MyKad Auto-Detection Logic
   void _onIcChanged() {
     String ic = _icController.text.replaceAll('-', '');
     if (ic.length == 12) {
       int lastDigit = int.parse(ic.substring(11));
       String detectedGender = (lastDigit % 2 == 0) ? 'Female' : 'Male';
-
       int yearShort = int.parse(ic.substring(0, 2));
       int currentYearFull = DateTime.now().year;
       int currentYearShort = currentYearFull % 100;
-
       int birthYear = (yearShort > currentYearShort + 2) ? 1900 + yearShort : 2000 + yearShort;
       int detectedAge = currentYearFull - birthYear;
 
@@ -163,7 +173,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  // Google Sign-Up Logic
   Future<void> _handleGoogleSignUp() async {
     setState(() => _isLoading = true);
     try {
@@ -177,23 +186,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
             _nameController.text = googleUser.displayName ?? "";
           }
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Google account linked! Please set a password for CareConnect.'))
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Google account linked! Please set a password for CareConnect.')));
       }
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Google Sign-In failed: $error'))
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google Sign-In failed: $error')));
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   void _addRecipient() {
-    setState(() {
-      _recipients.add(RecipientData());
-    });
+    setState(() => _recipients.add(RecipientData()));
   }
 
   void _removeRecipient(int index) {
@@ -208,16 +211,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void _nextSection() {
     if (_currentSection < _totalSections - 1) {
       setState(() => _currentSection++);
-      _pageController.animateToPage(_currentSection,
-          duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+      _pageController.animateToPage(_currentSection, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
     }
   }
 
   void _previousSection() {
     if (_currentSection > 0) {
       setState(() => _currentSection--);
-      _pageController.animateToPage(_currentSection,
-          duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+      _pageController.animateToPage(_currentSection, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
     }
   }
 
@@ -236,9 +237,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => _isLoading = true);
 
-    // Convert Image & PDFs to Base64 Strings if picked
-    String? base64Profile, base64Ic, base64License, base64Cert;
+    // Convert Images & PDFs to Base64 Strings if picked
+    String? base64Profile, base64Passport, base64Ic, base64License, base64Cert;
+    
     if (_profileImage != null) base64Profile = base64Encode(await _profileImage!.readAsBytes());
+    if (_passportImage != null) base64Passport = base64Encode(await _passportImage!.readAsBytes()); // NEW
     if (_icFile != null) base64Ic = base64Encode(await _icFile!.readAsBytes());
     if (_licenseFile != null) base64License = base64Encode(await _licenseFile!.readAsBytes());
     if (_certFile != null) base64Cert = base64Encode(await _certFile!.readAsBytes());
@@ -277,6 +280,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       "password": _passwordController.text,
       "role": _selectedRole,
       "profile_image": base64Profile, 
+      "passport_image": base64Passport, // NEW
       "ic_image": base64Ic,
       "license_image": base64License,
       "cert_image": base64Cert,
@@ -289,12 +293,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => _isLoading = false);
 
     if (result['success']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message']), backgroundColor: const Color(0xFF6B3F69)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message']), backgroundColor: const Color(0xFF6B3F69)));
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const LoginScreen()));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message']), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message']), backgroundColor: Colors.red));
     }
   }
 
@@ -352,8 +354,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 20),
                 TextButton(
                   onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const LoginScreen())),
-                  child: const Text("Already have an account? Sign In",
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                  child: const Text("Already have an account? Sign In", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -369,7 +370,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         GestureDetector(
           onTap: _pickProfileImage,
           child: Container(
-            width: 85, // Fixed width/height to ensure circular clipping
+            width: 85, 
             height: 85,
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
@@ -377,24 +378,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
               border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
             ),
             child: _profileImage != null
-                ? ClipOval(
-                    child: Image.file(
-                      _profileImage!,
-                      fit: BoxFit.cover,
-                      width: 85,
-                      height: 85,
-                    ),
-                  )
-                : const Center(
-                    child: Icon(Icons.person_add_alt_1_outlined, size: 45, color: Colors.white),
-                  ),
+                ? ClipOval(child: Image.file(_profileImage!, fit: BoxFit.cover, width: 85, height: 85))
+                : const Center(child: Icon(Icons.person_add_alt_1_outlined, size: 45, color: Colors.white)),
           ),
         ),
         const SizedBox(height: 10),
-        Text('${_selectedRole.toUpperCase()} REGISTRATION',
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2, color: Colors.white)),
-        Text('Section ${_currentSection + 1} of $_totalSections',
-            style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+        Text('${_selectedRole.toUpperCase()} REGISTRATION', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2, color: Colors.white)),
+        Text('Section ${_currentSection + 1} of $_totalSections', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -480,10 +470,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         const Row(
           children: [
             Expanded(child: Divider()),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              child: Text("OR", style: TextStyle(color: Colors.grey, fontSize: 12)),
-            ),
+            Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("OR", style: TextStyle(color: Colors.grey, fontSize: 12))),
             Expanded(child: Divider()),
           ],
         ),
@@ -533,8 +520,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
           const Text('Certificate Documents', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
           const SizedBox(height: 10),
           
-          // Replaced with PDF Pickers
-          _buildUploadItem('Profile Picture (Image)', Icons.camera_alt_outlined, _profileImage, _pickProfileImage),
+          // UPDATED: Now uses the new Passport Image picker instead of the Profile Image picker!
+          _buildUploadItem('Passport Style Picture (Image)', Icons.portrait_outlined, _passportImage, _pickPassportImage),
           _buildUploadItem('I/C or Passport (PDF)', Icons.picture_as_pdf_outlined, _icFile, () => _pickDocumentFile('IC')),
           _buildUploadItem('Driving License (PDF)', Icons.picture_as_pdf_outlined, _licenseFile, () => _pickDocumentFile('License')),
           _buildUploadItem('Certifications (PDF)', Icons.picture_as_pdf_outlined, _certFile, () => _pickDocumentFile('Cert')),
@@ -618,15 +605,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             const SizedBox(height: 12),
           ],
-          // Replaced TextField with DropdownButtonFormField for Medical Condition
           DropdownButtonFormField<String>(
             isExpanded: true,
             value: data.selectedCondition,
             decoration: _inputDecoration('Medical Condition', Icons.medical_information_outlined),
-            items: _medicalConditions.map((condition) => DropdownMenuItem(
-              value: condition,
-              child: Text(condition, style: const TextStyle(fontSize: 13)),
-            )).toList(),
+            items: _medicalConditions.map((condition) => DropdownMenuItem(value: condition, child: Text(condition, style: const TextStyle(fontSize: 13)))).toList(),
             onChanged: (val) => setState(() => data.selectedCondition = val),
             validator: (v) => v == null ? 'Please select a condition' : null,
           ),

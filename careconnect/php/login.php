@@ -18,7 +18,7 @@ $data = json_decode(file_get_contents("php://input"), true);
 
 if (!empty($data['email']) && !empty($data['password'])) {
     try {
-        // UPDATED: We use a LEFT JOIN to attach the worker's 'is_verified' status from the worker_details table
+        // We use a LEFT JOIN to attach the worker's 'is_verified' status from the worker_details table
         $query = "SELECT u.id, u.name, u.ic_number, u.gender, u.email, u.age, u.phone, u.address, u.password_hash, u.role, u.profile_image, w.is_verified 
                   FROM users u 
                   LEFT JOIN worker_details w ON u.id = w.user_id 
@@ -33,14 +33,24 @@ if (!empty($data['email']) && !empty($data['password'])) {
             
             if (password_verify($data['password'], $row['password_hash'])) {
                 
-                // --- NEW: Block Unverified Workers ---
+                // --- UPDATED: Split Pending and Rejected Logic ---
                 if ($row['role'] === 'Worker') {
-                    // Check if 'is_verified' is 0 or null (unapproved/pending)
-                    if ($row['is_verified'] != 1) {
+                    
+                    // Status 0: Pending Verification
+                    if ($row['is_verified'] == 0) {
                         http_response_code(403); // 403 Forbidden
                         echo json_encode(array(
                             "success" => false, 
                             "message" => "Your account is pending verification by the admin. You cannot login yet."
+                        ));
+                        exit;
+                    } 
+                    // Status 2: Rejected Application
+                    elseif ($row['is_verified'] == 2) {
+                        http_response_code(403); // 403 Forbidden
+                        echo json_encode(array(
+                            "success" => false, 
+                            "message" => "Your worker application has been rejected by the admin. Please review your documents or contact support."
                         ));
                         exit;
                     }

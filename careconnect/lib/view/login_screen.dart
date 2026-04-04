@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/mysql_api_service.dart';
 import 'signup_screen.dart';
-import 'client_dashboard.dart'; // Import the dashboard
+import 'client_dashboard.dart'; // Import the client dashboard
+import 'worker_dashboard.dart'; // Import the new worker dashboard
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -55,8 +56,13 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         } else if (user['role'] == 'Worker') {
-          // TODO: Navigate to Worker Dashboard once created
-          debugPrint('Worker login successful, but Worker Dashboard is not yet implemented.');
+          // Connected the Worker Dashboard!
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => WorkerDashboard(user: user),
+            ),
+          );
         }
         
       } else {

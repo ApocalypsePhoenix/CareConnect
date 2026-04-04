@@ -50,6 +50,7 @@ if (
         }
 
         // --- 2. Handle Worker PDF Documents Upload ---
+        $passportDocPath = null;
         $icDocPath = null;
         $licenseDocPath = null;
         $certDocPath = null;
@@ -60,6 +61,17 @@ if (
             
             if (!is_dir($workerDocsDir)) {
                 mkdir($workerDocsDir, 0755, true);
+            }
+
+            // NEW: Decode and save Passport Image
+            if (!empty($data['passport_image'])) {
+                $decodedPassport = base64_decode($data['passport_image']);
+                if ($decodedPassport !== false) {
+                    $fileName = uniqid('passport_') . '.jpg';
+                    if (file_put_contents($workerDocsDir . $fileName, $decodedPassport)) {
+                        $passportDocPath = $dbDocsPath . $fileName;
+                    }
+                }
             }
 
             // Decode and save IC PDF
@@ -140,7 +152,7 @@ if (
             $servicesStmt->bindParam(':mobility', $mobility);
             $servicesStmt->bindParam(':physio', $physio);
             $servicesStmt->bindParam(':nursing', $nursing);
-            $servicesStmt->bindParam(':profile_pic', $profileImagePath);
+            $servicesStmt->bindParam(':profile_pic', $passportDocPath); // CHANGED: Saves the dedicated passport image path
             $servicesStmt->bindParam(':ic_doc', $icDocPath);
             $servicesStmt->bindParam(':license_doc', $licenseDocPath);
             $servicesStmt->bindParam(':cert_doc', $certDocPath);

@@ -12,7 +12,7 @@ try {
     // We join the users table and worker_details table to get everything we need
     $query = "SELECT u.id, u.name, u.email, u.phone, u.address, u.gender, u.ic_number, u.profile_image,
                      w.is_verified, w.mobility_service, w.physio_service, w.nursing_service,
-                     w.ic_doc_url, w.license_doc_url, w.cert_doc_url
+                     w.profile_pic_url, w.ic_doc_url, w.license_doc_url, w.cert_doc_url
               FROM users u
               JOIN worker_details w ON u.id = w.user_id
               WHERE u.role = 'Worker'
@@ -24,23 +24,16 @@ try {
     $workers = [];
 
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        // Map the integer status to our dashboard text
         $status = 'PENDING';
-        if ($row['is_verified'] == 1) {
-            $status = 'APPROVED';
-        } elseif ($row['is_verified'] == 2) {
-            $status = 'REJECTED';
-        }
+        if ($row['is_verified'] == 1) $status = 'APPROVED';
+        elseif ($row['is_verified'] == 2) $status = 'REJECTED';
 
-        // Figure out their primary service label
         $services = [];
         if ($row['mobility_service']) $services[] = "Mobility Service";
         if ($row['physio_service']) $services[] = "Physiotherapy / Rehabilitation";
         if ($row['nursing_service']) $services[] = "Daily Assistance / Nursing Care";
         
         $serviceLabel = implode(", ", $services);
-        if (empty($serviceLabel)) $serviceLabel = "Unspecified Service";
-        
         // Use the first service for the filter category
         $primaryService = 'all';
         if ($row['mobility_service']) $primaryService = 'mobility service';
@@ -63,6 +56,7 @@ try {
             "gender" => $row['gender'],
             "ic" => $row['ic_number'],
             "profile_pic" => $profilePicUrl,
+            "passport_doc" => $row['profile_pic_url'], // NEW: Safely pulling the passport picture from worker_details
             "ic_doc" => $row['ic_doc_url'],
             "license_doc" => $row['license_doc_url'],
             "cert_doc" => $row['cert_doc_url']
