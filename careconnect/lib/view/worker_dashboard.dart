@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'find_client_screen.dart'; 
 
 class WorkerDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -26,7 +27,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
         slivers: [
           // Header with Welcome Message
           SliverAppBar(
-            expandedHeight: 120, // Reduced height for a sleeker look
+            expandedHeight: 10, // Reduced height for a sleeker look
             floating: false,
             pinned: true,
             automaticallyImplyLeading: false,
@@ -148,7 +149,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
         onTap: (int index) {
           if (index == 1) {
             // Navigate to Client Requests Screen
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const PlaceholderClientScreen()));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => FindClientScreen(user: _currentUser)));
           } else if (index == 2) {
             // Navigate to Booking History
             Navigator.push(context, MaterialPageRoute(builder: (context) => const PlaceholderHistoryScreen()));
@@ -191,7 +192,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
                 ElevatedButton(
                   onPressed: () {
                     // Navigate to Find Clients Screen
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const PlaceholderClientScreen()));
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => FindClientScreen(user: _currentUser)));
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6B3F69),

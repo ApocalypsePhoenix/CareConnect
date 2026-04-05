@@ -174,7 +174,7 @@ class MysqlApiService {
     try {
       final response = await http.post(
         url,
-        // We send this as standard form data so the PHP can read it with $_POST['id']
+        // PHP read it with $_POST['id']
         body: {'id': id},
       );
       
@@ -186,6 +186,60 @@ class MysqlApiService {
     } catch (e) {
       print("Error deleting recipient: $e");
       return false;
+    }
+  }
+
+  // LIVE BOOKING & WORKER REQUEST LOGIC
+
+  static Future<Map<String, dynamic>> submitBooking(Map<String, dynamic> bookingData) async {
+    final url = Uri.parse('$_baseUrl/submit_booking.php');
+    try {
+      final response = await http.post(
+        url, 
+        headers: {'Content-Type': 'application/json'}, 
+        body: jsonEncode(bookingData)
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateWorkerVisibility(String workerId, bool isOnline) async {
+    final url = Uri.parse('$_baseUrl/update_visibility.php');
+    try {
+      final response = await http.post(
+        url, 
+        headers: {'Content-Type': 'application/json'}, 
+        body: jsonEncode({'worker_id': workerId, 'is_online': isOnline ? 1 : 0})
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getAvailableRequests(String workerId) async {
+    final url = Uri.parse('$_baseUrl/get_requests.php?worker_id=$workerId');
+    try {
+      final response = await http.get(url);
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> respondToRequest(String requestId, String workerId, String action) async {
+    final url = Uri.parse('$_baseUrl/respond_request.php');
+    try {
+      final response = await http.post(
+        url, 
+        headers: {'Content-Type': 'application/json'}, 
+        body: jsonEncode({'request_id': requestId, 'worker_id': workerId, 'action': action})
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
     }
   }
 }

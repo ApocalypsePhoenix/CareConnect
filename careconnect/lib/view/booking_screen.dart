@@ -17,6 +17,8 @@ class _BookingScreenState extends State<BookingScreen> {
   String? _careTarget; 
   
   bool _isLoadingRecipients = true;
+  bool _isSubmitting = false; // Tracks if booking is currently sending to database
+  
   Map<String, dynamic>? _selfRecipient;
   List<dynamic> _otherRecipients = [];
   dynamic _selectedOtherRecipient;
@@ -98,7 +100,8 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  void _submitBooking() {
+  // --- UPDATED: Sends data to LIVE DATABASE ---
+  Future<void> _submitBooking() async {
     if (_selectedService == null) return _showError('Please select a service.');
     if (_careTarget == null) return _showError('Please specify who this booking is for.');
     if (_careTarget == 'Others' && _selectedOtherRecipient == null) return _showError('Please select a care recipient.');
@@ -106,19 +109,46 @@ class _BookingScreenState extends State<BookingScreen> {
     if (_selectedService == 'Mobility Service' && _dropoffController.text.trim().isEmpty) return _showError('Please select the drop-off location.');
     if (_expectedDuration == null || _preferredLanguage == null || _preferredGender == null) return _showError('Please complete all preferences.');
 
-    // DEBUG: Show the hidden coordinates to prove the Geocoding worked!
-    String coordinateProof = 'Pickup Lat/Lng: $_pickupLat, $_pickupLng';
-    if (_selectedService == 'Mobility Service') {
-      coordinateProof += '\nDropoff Lat/Lng: $_dropoffLat, $_dropoffLng';
+    setState(() {
+      _isSubmitting = true; // Show loading spinner
+    });
+
+    // Bundle all the data to send to the PHP API
+    final bookingData = {
+      'client_id': widget.user['id'].toString(),
+      'patient_name': _careTarget == 'Self' ? widget.user['name'] : _selectedOtherRecipient?['name'] ?? '',
+      'patient_age': _careTarget == 'Self' ? widget.user['age'].toString() : _selectedOtherRecipient?['age'].toString() ?? '',
+      'medical_condition': _careTarget == 'Self' ? (_selfRecipient?['medical_condition'] ?? 'Not specified') : _selectedOtherRecipient?['medical_condition'] ?? 'Not specified',
+      'special_needs': _careTarget == 'Self' ? (_selfRecipient?['special_needs'] ?? '') : _selectedOtherRecipient?['special_needs'] ?? '',
+      'service_needed': _selectedService,
+      'pickup_location': _primaryLocationController.text,
+      'pickup_lat': _pickupLat,
+      'pickup_lng': _pickupLng,
+      'dropoff_location': _dropoffController.text,
+      'dropoff_lat': _dropoffLat,
+      'dropoff_lng': _dropoffLng,
+      'expected_duration': _expectedDuration,
+      'preferred_language': _preferredLanguage,
+      'preferred_gender': _preferredGender,
+    };
+
+    // Send it to the live database
+    final result = await MysqlApiService.submitBooking(bookingData);
+
+    if (mounted) {
+      setState(() {
+        _isSubmitting = false; // Hide loading spinner
+      });
+
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Booking Confirmed! System has broadcasted your request to available workers.'), backgroundColor: Colors.green)
+        );
+        Navigator.pop(context); // Go back to dashboard
+      } else {
+        _showError(result['message'] ?? 'Failed to submit booking. Please try again.');
+      }
     }
-
-    // Send these precise Coordinates to MySQL database later
-    print(coordinateProof);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Booking Confirmed! System has captured exact coordinates.'), backgroundColor: Colors.green)
-    );
-    Navigator.pop(context);
   }
 
   void _showError(String message) {
@@ -245,12 +275,14 @@ class _BookingScreenState extends State<BookingScreen> {
                       width: double.infinity,
                       height: 55,
                       child: ElevatedButton(
-                        onPressed: _submitBooking,
+                        onPressed: _isSubmitting ? null : _submitBooking, // Disable if submitting
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF6B3F69),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         ),
-                        child: const Text('Confirm Booking', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                        child: _isSubmitting 
+                          ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Confirm Booking', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
                     ),
                     const SizedBox(height: 20),
