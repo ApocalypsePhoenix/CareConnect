@@ -10,8 +10,8 @@ $data = json_decode(file_get_contents("php://input"), true);
 if (isset($data['request_id']) && isset($data['action']) && isset($data['worker_id'])) {
     
     if ($data['action'] === 'Accepted') {
-        // Assign the worker and change status to 'Accepted'
-        $stmt = $db->prepare("UPDATE bookings SET status = 'Accepted', worker_id = :worker_id WHERE id = :id AND status = 'Pending'");
+        // CHANGED: Assign the worker and change status to 'Pending_Approval' to wait for client approval
+        $stmt = $db->prepare("UPDATE bookings SET status = 'Pending_Approval', worker_id = :worker_id WHERE id = :id AND status = 'Pending'");
         $stmt->execute([':worker_id' => $data['worker_id'], ':id' => $data['request_id']]);
         
         if ($stmt->rowCount() > 0) {

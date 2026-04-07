@@ -14,13 +14,16 @@ class FindClientScreen extends StatefulWidget {
 class _FindClientScreenState extends State<FindClientScreen> {
   bool _isOnline = false; 
   bool _isLoading = false;
-  bool _isBusy = false; // NEW: Tracks if the worker currently has an active job
+  bool _isBusy = false; // Tracks if the worker currently has an active job
   Timer? _pollingTimer; // Timer to fetch live data
   
-  double? _currentLat; // NEW: Store worker's latitude
-  double? _currentLng; // NEW: Store worker's longitude
+  double? _currentLat; // Store worker's latitude
+  double? _currentLng; // Store worker's longitude
 
   List<Map<String, dynamic>> _incomingRequests = [];
+  
+  // FIXED: Added 'static' so the memory survives even if the worker goes back to the Dashboard!
+  static final Set<int> _ignoredRequestIds = {};
 
   @override
   void initState() {
@@ -34,7 +37,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
     super.dispose();
   }
 
-  // --- NEW: Ask for GPS Permission & Get Location ---
+  // --- Ask for GPS Permission & Get Location ---
   Future<bool> _determinePosition() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -89,7 +92,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
       _isLoading = true;
     });
 
-    // NEW: If trying to go online, fetch GPS location first!
+    // If trying to go online, fetch GPS location first!
     if (value == true) {
       bool hasLocation = await _determinePosition();
       if (!hasLocation) {
@@ -126,7 +129,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
   Future<void> _fetchLiveRequests() async {
     if (!_isOnline || _currentLat == null || _currentLng == null) return;
 
-    // UPDATED: Pass the worker's current coordinates to the API
+    // Pass the worker's current coordinates to the API
     final result = await MysqlApiService.getAvailableRequests(widget.user['id'].toString(), _currentLat!, _currentLng!);
     if (mounted && result['success'] == true) {
       setState(() {
@@ -137,8 +140,11 @@ class _FindClientScreenState extends State<FindClientScreen> {
           _incomingRequests.clear();
           _pollingTimer?.cancel();
         } else {
-          // Convert the fetched data into the list safely
-          _incomingRequests = List<Map<String, dynamic>>.from(result['requests'] ?? []);
+          // Filter out any jobs that this worker has previously declined
+          final allFetchedRequests = List<Map<String, dynamic>>.from(result['requests'] ?? []);
+          _incomingRequests = allFetchedRequests.where((req) {
+            return !_ignoredRequestIds.contains(int.parse(req['id'].toString()));
+          }).toList();
         }
       });
     }
@@ -239,6 +245,11 @@ class _FindClientScreenState extends State<FindClientScreen> {
     // 1. Remove it from the screen instantly for a snappy UI
     setState(() {
       _incomingRequests.removeWhere((req) => int.parse(req['id'].toString()) == requestId);
+      
+      // Memorize the rejected ID so it won't come back on next refresh
+      if (action == 'Rejected') {
+        _ignoredRequestIds.add(requestId);
+      }
     });
     
     // 2. If they accept, tell the database!
@@ -268,9 +279,9 @@ class _FindClientScreenState extends State<FindClientScreen> {
         }
       }
     } else {
-      // If rejected locally, just show a snackbar (other workers can still see it)
+      // If rejected locally, just show a snackbar
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Request declined.'), backgroundColor: Colors.redAccent)
+        const SnackBar(content: Text('Request declined. It has been removed from your list.'), backgroundColor: Colors.orange)
       );
     }
   }
@@ -444,7 +455,6 @@ class _FindClientScreenState extends State<FindClientScreen> {
                         decoration: BoxDecoration(color: const Color(0xFFDDC3C3).withOpacity(0.5), borderRadius: BorderRadius.circular(10)),
                         child: Text(request['service_needed']?.toString() ?? '', style: const TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold, fontSize: 12)),
                       ),
-                      // UPDATED: Show the distance from the worker
                       Text(request['distance'] != null ? '${double.parse(request['distance'].toString()).toStringAsFixed(1)} km away' : 'New Request', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
                     ],
                   ),

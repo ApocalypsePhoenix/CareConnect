@@ -5,7 +5,6 @@ class MysqlApiService {
   static const String _baseUrl = 'https://arcadiusengine.xyz/careconnect/php';
 
   static Future<Map<String, dynamic>> registerClient(Map<String, dynamic> clientData) async {
-    // UPDATED: Now points to the universal register.php file
     final url = Uri.parse('$_baseUrl/register.php');
     try {
       final response = await http.post(
@@ -67,9 +66,9 @@ class MysqlApiService {
     }
   }
 
-  /// Fetches all care recipients for a specific client user
+  /// Fetches all care recipients for a specific client user (CACHE BUSTER ADDED)
   static Future<Map<String, dynamic>> getRecipients(int userId) async {
-    final url = Uri.parse('$_baseUrl/get_recipients.php?user_id=$userId');
+    final url = Uri.parse('$_baseUrl/get_recipients.php?user_id=$userId&t=${DateTime.now().millisecondsSinceEpoch}');
     try {
       final response = await http.get(url);
       return jsonDecode(response.body);
@@ -135,30 +134,20 @@ class MysqlApiService {
       final response = await http.post(
         url,
         headers: {
-          'Content-Type': 'application/json', // Changed to JSON to match your other API calls
+          'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'id': int.tryParse(id) ?? 0, // Ensure id is passed securely as an int
+          'id': int.tryParse(id) ?? 0,
           'name': name,
           'relationship': relationship,
-          'age': int.tryParse(age.trim()) ?? 0, // Ensure age is parsed to int for the DB
+          'age': int.tryParse(age.trim()) ?? 0,
           'medical_condition': medicalCondition,
           'special_needs': specialNeeds,
         }),
       );
 
-      // Print the raw server response to the console to help debug PHP issues!
-      print('PHP Response Code: ${response.statusCode}');
-      print('PHP Response Body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
-        // If the PHP script returns an error message, print it out
-        if (data['success'] == false && data['message'] != null) {
-          print('PHP Error Message: ${data['message']}');
-        }
-        
         return data['success'] ?? false;
       }
       return false;
@@ -174,7 +163,6 @@ class MysqlApiService {
     try {
       final response = await http.post(
         url,
-        // PHP read it with $_POST['id']
         body: {'id': id},
       );
       
@@ -190,7 +178,6 @@ class MysqlApiService {
   }
 
   // LIVE BOOKING & WORKER REQUEST LOGIC
-
   static Future<Map<String, dynamic>> submitBooking(Map<String, dynamic> bookingData) async {
     final url = Uri.parse('$_baseUrl/submit_booking.php');
     try {
@@ -219,8 +206,9 @@ class MysqlApiService {
     }
   }
 
+  // CACHE BUSTER ADDED
   static Future<Map<String, dynamic>> getAvailableRequests(String workerId, double lat, double lng) async {
-    final url = Uri.parse('$_baseUrl/get_requests.php?worker_id=$workerId&lat=$lat&lng=$lng');
+    final url = Uri.parse('$_baseUrl/get_requests.php?worker_id=$workerId&lat=$lat&lng=$lng&t=${DateTime.now().millisecondsSinceEpoch}');
     try {
       final response = await http.get(url);
       return jsonDecode(response.body);
@@ -243,16 +231,16 @@ class MysqlApiService {
     }
   }
 
-  // ==========================================
-  // ACTIVE SERVICES & LIVE TRACKING LOGIC
-  // ==========================================
-
+  // ACTIVE SERVICES & LIVE TRACKING LOGIC (CACHE BUSTER ADDED)
   static Future<Map<String, dynamic>> getActiveService({String? clientId, String? workerId}) async {
     String query = '';
     if (clientId != null) query = '?client_id=$clientId';
     if (workerId != null) query = '?worker_id=$workerId';
     
-    final url = Uri.parse('$_baseUrl/get_active_service.php$query');
+    // Add cache buster depending on if a query string already exists
+    String cacheBuster = (query.isEmpty ? '?' : '&') + 't=${DateTime.now().millisecondsSinceEpoch}';
+    
+    final url = Uri.parse('$_baseUrl/get_active_service.php$query$cacheBuster');
     try {
       final response = await http.get(url);
       return jsonDecode(response.body);
@@ -279,6 +267,47 @@ class MysqlApiService {
         headers: {'Content-Type': 'application/json'}, 
         body: jsonEncode({'booking_id': bookingId, 'role': role})
       );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  // NEW: Decline Worker API
+  static Future<Map<String, dynamic>> declineWorker(String bookingId, String workerId) async {
+    final url = Uri.parse('$_baseUrl/decline_worker.php');
+    try {
+      final response = await http.post(
+        url, 
+        headers: {'Content-Type': 'application/json'}, 
+        body: jsonEncode({'booking_id': bookingId, 'worker_id': workerId})
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  // Function to find out why a job disappeared (CACHE BUSTER ADDED)
+  static Future<Map<String, dynamic>> checkBookingStatus(String bookingId) async {
+    final url = Uri.parse('$_baseUrl/check_booking_status.php?booking_id=$bookingId&t=${DateTime.now().millisecondsSinceEpoch}');
+    try {
+      final response = await http.get(url);
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  //Fetch Booking History (Completed or Cancelled)
+  static Future<Map<String, dynamic>> getBookingHistory({String? clientId, String? workerId}) async {
+    String query = '';
+    if (clientId != null) query = '?client_id=$clientId';
+    if (workerId != null) query = '?worker_id=$workerId';
+    
+    final url = Uri.parse('$_baseUrl/get_history.php$query&t=${DateTime.now().millisecondsSinceEpoch}');
+    try {
+      final response = await http.get(url);
       return jsonDecode(response.body);
     } catch (e) {
       return {'success': false, 'message': 'Network error: $e'};

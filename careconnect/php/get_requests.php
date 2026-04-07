@@ -21,13 +21,14 @@ if ($worker_id) {
 }
 
 // CONDITION 2: Fetch "Pending" bookings within a 5 KM Radius using Haversine formula
-if ($worker_lat != 0 && $worker_lng != 0) {
+if ($worker_lat != 0 && $worker_lng != 0 && $worker_id) {
     $query = "SELECT id, patient_name as client_name, service_needed, pickup_location as location, 
               DATE_FORMAT(created_at, '%b %d, %h:%i %p') as date, 
               CONCAT(medical_condition, ' - ', special_needs) as details,
               (6371 * acos(cos(radians(:w_lat)) * cos(radians(pickup_lat)) * cos(radians(pickup_lng) - radians(:w_lng)) + sin(radians(:w_lat)) * sin(radians(pickup_lat)))) AS distance 
               FROM bookings 
               WHERE status = 'Pending' 
+              AND (worker_id IS NULL OR worker_id != :w_id) 
               AND pickup_lat IS NOT NULL 
               AND pickup_lng IS NOT NULL 
               HAVING distance <= 5 
@@ -36,6 +37,7 @@ if ($worker_lat != 0 && $worker_lng != 0) {
     $stmt = $db->prepare($query);
     $stmt->bindParam(':w_lat', $worker_lat);
     $stmt->bindParam(':w_lng', $worker_lng);
+    $stmt->bindParam(':w_id', $worker_id); // Binds the current worker's ID to hide it if they were declined
     $stmt->execute();
     $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } else {

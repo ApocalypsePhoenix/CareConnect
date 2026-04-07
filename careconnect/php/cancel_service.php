@@ -18,17 +18,11 @@ if (isset($data['booking_id']) && isset($data['role'])) {
         $booking = $stmt->fetch(PDO::FETCH_ASSOC);
         $worker_id = $booking ? $booking['worker_id'] : null;
 
-        if ($role === 'Worker') {
-            // Worker cancels: Return job to the pool so another worker can take it
-            $update = $db->prepare("UPDATE bookings SET status = 'Pending', worker_id = NULL WHERE id = :id");
-            $update->execute([':id' => $booking_id]);
-        } else {
-            // Client cancels: Mark as cancelled permanently
-            $update = $db->prepare("UPDATE bookings SET status = 'Cancelled' WHERE id = :id");
-            $update->execute([':id' => $booking_id]);
-        }
+        // UPDATED: Both Worker and Client cancellations now TERMINATE the service permanently
+        $update = $db->prepare("UPDATE bookings SET status = 'Cancelled' WHERE id = :id");
+        $update->execute([':id' => $booking_id]);
 
-        // Free up the worker (make them available again)
+        // Free up the worker (make them available again for new jobs)
         if ($worker_id) {
             $freeWorker = $db->prepare("UPDATE worker_details SET is_available = 1 WHERE user_id = :w_id");
             $freeWorker->execute([':w_id' => $worker_id]);
