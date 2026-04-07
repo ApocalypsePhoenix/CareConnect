@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../services/mysql_api_service.dart';
 
 class FindClientScreen extends StatefulWidget {
@@ -16,6 +17,9 @@ class _FindClientScreenState extends State<FindClientScreen> {
   bool _isBusy = false; // NEW: Tracks if the worker currently has an active job
   Timer? _pollingTimer; // Timer to fetch live data
   
+  double? _currentLat; // NEW: Store worker's latitude
+  double? _currentLng; // NEW: Store worker's longitude
+
   List<Map<String, dynamic>> _incomingRequests = [];
 
   @override
@@ -30,10 +34,41 @@ class _FindClientScreenState extends State<FindClientScreen> {
     super.dispose();
   }
 
+  // --- NEW: Ask for GPS Permission & Get Location ---
+  Future<bool> _determinePosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enable GPS location services.'), backgroundColor: Colors.redAccent));
+      return false;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location permissions are denied.'), backgroundColor: Colors.redAccent));
+        return false;
+      }
+    }
+    
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location permissions are permanently denied.'), backgroundColor: Colors.redAccent));
+      return false;
+    } 
+
+    Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    _currentLat = position.latitude;
+    _currentLng = position.longitude;
+    return true;
+  }
+
   // --- Check if worker has an active job before letting them go online ---
   Future<void> _checkIfBusy() async {
     setState(() => _isLoading = true);
-    final result = await MysqlApiService.getAvailableRequests(widget.user['id'].toString());
+    final result = await MysqlApiService.getAvailableRequests(widget.user['id'].toString(), 0.0, 0.0);
     
     if (mounted) {
       setState(() {
@@ -51,8 +86,20 @@ class _FindClientScreenState extends State<FindClientScreen> {
     if (_isBusy) return; // Prevent toggling if they are busy
 
     setState(() {
-      _isOnline = value;
       _isLoading = true;
+    });
+
+    // NEW: If trying to go online, fetch GPS location first!
+    if (value == true) {
+      bool hasLocation = await _determinePosition();
+      if (!hasLocation) {
+        setState(() => _isLoading = false);
+        return; // Abort going online if no GPS
+      }
+    }
+
+    setState(() {
+      _isOnline = value;
     });
 
     // Tell the database the worker is online
@@ -77,9 +124,10 @@ class _FindClientScreenState extends State<FindClientScreen> {
   }
 
   Future<void> _fetchLiveRequests() async {
-    if (!_isOnline) return;
+    if (!_isOnline || _currentLat == null || _currentLng == null) return;
 
-    final result = await MysqlApiService.getAvailableRequests(widget.user['id'].toString());
+    // UPDATED: Pass the worker's current coordinates to the API
+    final result = await MysqlApiService.getAvailableRequests(widget.user['id'].toString(), _currentLat!, _currentLng!);
     if (mounted && result['success'] == true) {
       setState(() {
         // If the backend says they are busy (they accepted a job on another device, etc)
@@ -396,7 +444,8 @@ class _FindClientScreenState extends State<FindClientScreen> {
                         decoration: BoxDecoration(color: const Color(0xFFDDC3C3).withOpacity(0.5), borderRadius: BorderRadius.circular(10)),
                         child: Text(request['service_needed']?.toString() ?? '', style: const TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold, fontSize: 12)),
                       ),
-                      const Text('New Request', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+                      // UPDATED: Show the distance from the worker
+                      Text(request['distance'] != null ? '${double.parse(request['distance'].toString()).toStringAsFixed(1)} km away' : 'New Request', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
                     ],
                   ),
                   const SizedBox(height: 15),

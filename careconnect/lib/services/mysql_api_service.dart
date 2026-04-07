@@ -219,8 +219,8 @@ class MysqlApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> getAvailableRequests(String workerId) async {
-    final url = Uri.parse('$_baseUrl/get_requests.php?worker_id=$workerId');
+  static Future<Map<String, dynamic>> getAvailableRequests(String workerId, double lat, double lng) async {
+    final url = Uri.parse('$_baseUrl/get_requests.php?worker_id=$workerId&lat=$lat&lng=$lng');
     try {
       final response = await http.get(url);
       return jsonDecode(response.body);
@@ -236,6 +236,48 @@ class MysqlApiService {
         url, 
         headers: {'Content-Type': 'application/json'}, 
         body: jsonEncode({'request_id': requestId, 'worker_id': workerId, 'action': action})
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  // ==========================================
+  // ACTIVE SERVICES & LIVE TRACKING LOGIC
+  // ==========================================
+
+  static Future<Map<String, dynamic>> getActiveService({String? clientId, String? workerId}) async {
+    String query = '';
+    if (clientId != null) query = '?client_id=$clientId';
+    if (workerId != null) query = '?worker_id=$workerId';
+    
+    final url = Uri.parse('$_baseUrl/get_active_service.php$query');
+    try {
+      final response = await http.get(url);
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateServiceStatus(String bookingId, String newStatus) async {
+    final url = Uri.parse('$_baseUrl/update_service_status.php');
+    try {
+      final response = await http.post(url, headers: {'Content-Type': 'application/json'}, body: jsonEncode({'booking_id': bookingId, 'status': newStatus}));
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> cancelService(String bookingId, String role) async {
+    final url = Uri.parse('$_baseUrl/cancel_service.php');
+    try {
+      final response = await http.post(
+        url, 
+        headers: {'Content-Type': 'application/json'}, 
+        body: jsonEncode({'booking_id': bookingId, 'role': role})
       );
       return jsonDecode(response.body);
     } catch (e) {
