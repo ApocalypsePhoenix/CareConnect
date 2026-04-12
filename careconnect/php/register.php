@@ -63,7 +63,7 @@ if (
                 mkdir($workerDocsDir, 0755, true);
             }
 
-            // NEW: Decode and save Passport Image
+            // Decode and save Passport Image
             if (!empty($data['passport_image'])) {
                 $decodedPassport = base64_decode($data['passport_image']);
                 if ($decodedPassport !== false) {
@@ -109,8 +109,9 @@ if (
         }
 
         // --- 3. Create the Main User Account ---
-        $userQuery = "INSERT INTO users (name, ic_number, age, phone, gender, address, email, password_hash, role, profile_image) 
-                      VALUES (:name, :ic, :age, :phone, :gender, :address, :email, :password, :role, :profile_image)";
+        // INCLUDES race and spoken_language
+        $userQuery = "INSERT INTO users (name, ic_number, age, phone, gender, race, spoken_language, address, email, password_hash, role, profile_image) 
+                      VALUES (:name, :ic, :age, :phone, :gender, :race, :language, :address, :email, :password, :role, :profile_image)";
         
         $userStmt = $db->prepare($userQuery);
         $password_hash = password_hash($data['password'], PASSWORD_BCRYPT);
@@ -120,6 +121,13 @@ if (
         $userStmt->bindParam(':age', $data['age']); 
         $userStmt->bindParam(':phone', $data['phone']);
         $userStmt->bindParam(':gender', $data['gender']);
+        
+        // Bind the new race and language variables with defaults
+        $race = !empty($data['race']) ? $data['race'] : 'Malay';
+        $language = !empty($data['spoken_language']) ? $data['spoken_language'] : 'Malay';
+        $userStmt->bindParam(':race', $race); 
+        $userStmt->bindParam(':language', $language); 
+
         $userStmt->bindParam(':address', $data['address']);
         $userStmt->bindParam(':email', $data['email']);
         $userStmt->bindParam(':password', $password_hash);
@@ -134,16 +142,13 @@ if (
 
         // --- 4. Handle Role-Specific Data ---
         
-        // 👉 IF WORKER: Save exactly to the worker_details table
         if ($data['role'] === 'Worker' && isset($data['worker_services'])) {
-            
             $servicesQuery = "INSERT INTO worker_details 
                               (user_id, mobility_service, physio_service, nursing_service, is_verified, profile_pic_url, ic_doc_url, license_doc_url, cert_doc_url) 
                               VALUES (:user_id, :mobility, :physio, :nursing, 0, :profile_pic, :ic_doc, :license_doc, :cert_doc)";
             
             $servicesStmt = $db->prepare($servicesQuery);
             
-            // Map the boolean values from the Flutter JSON payload to 1 or 0 for MySQL TINYINT
             $mobility = !empty($data['worker_services']['Mobility Service']) ? 1 : 0;
             $physio = !empty($data['worker_services']['Physiotherapy/Rehabilitation']) ? 1 : 0;
             $nursing = !empty($data['worker_services']['Daily Assistance/Nursing Care']) ? 1 : 0;
@@ -152,7 +157,7 @@ if (
             $servicesStmt->bindParam(':mobility', $mobility);
             $servicesStmt->bindParam(':physio', $physio);
             $servicesStmt->bindParam(':nursing', $nursing);
-            $servicesStmt->bindParam(':profile_pic', $passportDocPath); // CHANGED: Saves the dedicated passport image path
+            $servicesStmt->bindParam(':profile_pic', $passportDocPath); 
             $servicesStmt->bindParam(':ic_doc', $icDocPath);
             $servicesStmt->bindParam(':license_doc', $licenseDocPath);
             $servicesStmt->bindParam(':cert_doc', $certDocPath);
@@ -161,9 +166,7 @@ if (
                 throw new Exception("Failed to save worker details and documents.");
             }
         } 
-        // 👉 IF CLIENT: Save exactly to the recipients table
         elseif ($data['role'] === 'Client' && isset($data['recipients']) && is_array($data['recipients'])) {
-            
             $recipientQuery = "INSERT INTO recipients (user_id, name, age, relationship, medical_condition, special_needs) 
                                VALUES (:user_id, :name, :age, :relationship, :condition, :needs)";
             

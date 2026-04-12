@@ -36,11 +36,15 @@ class _BookingScreenState extends State<BookingScreen> {
   String? _expectedDuration;
   String? _preferredLanguage;
   String? _preferredGender;
+  String? _preferredRace; // NEW
 
   final List<String> _services = ['Mobility Service', 'Physiotherapy/Rehabilitation', 'Daily Assistance/Nursing Care'];
   final List<String> _durations = ['1 hour', '2 hours', '3 hours', '4 hours', '5 hours+'];
-  final List<String> _languages = ['English', 'Bahasa Malaysia', 'Mandarin', 'Tamil'];
-  final List<String> _genders = ['Male', 'Female']; 
+  
+  // UPDATED: Added 'Any' to all preferences and cleaned up the lists
+  final List<String> _languages = ['Any', 'Malay', 'English', 'Mandarin', 'Tamil'];
+  final List<String> _genders = ['Any', 'Male', 'Female']; 
+  final List<String> _races = ['Any', 'Malay', 'Chinese', 'Indian']; // NEW
 
   @override
   void initState() {
@@ -100,14 +104,15 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  // --- UPDATED: Sends data to LIVE DATABASE ---
   Future<void> _submitBooking() async {
     if (_selectedService == null) return _showError('Please select a service.');
     if (_careTarget == null) return _showError('Please specify who this booking is for.');
     if (_careTarget == 'Others' && _selectedOtherRecipient == null) return _showError('Please select a care recipient.');
     if (_primaryLocationController.text.trim().isEmpty) return _showError('Please select the location.');
     if (_selectedService == 'Mobility Service' && _dropoffController.text.trim().isEmpty) return _showError('Please select the drop-off location.');
-    if (_expectedDuration == null || _preferredLanguage == null || _preferredGender == null) return _showError('Please complete all preferences.');
+    
+    // UPDATED: Included _preferredRace in the validation check
+    if (_expectedDuration == null || _preferredLanguage == null || _preferredGender == null || _preferredRace == null) return _showError('Please complete all preferences.');
 
     setState(() {
       _isSubmitting = true; // Show loading spinner
@@ -130,6 +135,7 @@ class _BookingScreenState extends State<BookingScreen> {
       'expected_duration': _expectedDuration,
       'preferred_language': _preferredLanguage,
       'preferred_gender': _preferredGender,
+      'preferred_race': _preferredRace, // NEW
     };
 
     // Send it to the live database
@@ -265,9 +271,13 @@ class _BookingScreenState extends State<BookingScreen> {
 
                     _buildDropdown(value: _expectedDuration, hint: 'Expected Duration', icon: Icons.timer_outlined, options: _durations, onChanged: (val) => setState(() => _expectedDuration = val)),
                     const SizedBox(height: 15),
-                    _buildDropdown(value: _preferredLanguage, hint: 'Preferred Language', icon: Icons.language, options: _languages, onChanged: (val) => setState(() => _preferredLanguage = val)),
-                    const SizedBox(height: 15),
                     _buildDropdown(value: _preferredGender, hint: 'Preferred Gender', icon: Icons.wc, options: _genders, onChanged: (val) => setState(() => _preferredGender = val)),
+                    const SizedBox(height: 15),
+                    // NEW: Preferred Race Dropdown
+                    _buildDropdown(value: _preferredRace, hint: 'Preferred Race', icon: Icons.groups, options: _races, onChanged: (val) => setState(() => _preferredRace = val)),
+                    const SizedBox(height: 15),
+                    // UPDATED: Preferred Language
+                    _buildDropdown(value: _preferredLanguage, hint: 'Preferred Language', icon: Icons.language, options: _languages, onChanged: (val) => setState(() => _preferredLanguage = val)),
 
                     const SizedBox(height: 40),
 
@@ -357,7 +367,6 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  // A read-only text field that acts like a button to open the Search Screen
   Widget _buildClickableLocationField({required String label, required TextEditingController controller, required VoidCallback onTap, IconData icon = Icons.location_on}) {
     return GestureDetector(
       onTap: onTap,

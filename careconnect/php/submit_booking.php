@@ -11,8 +11,9 @@ $data = json_decode(file_get_contents("php://input"), true);
 
 if (!empty($data['client_id']) && !empty($data['service_needed'])) {
     try {
-        $query = "INSERT INTO bookings (client_id, patient_name, patient_age, medical_condition, special_needs, service_needed, pickup_location, pickup_lat, pickup_lng, dropoff_location, dropoff_lat, dropoff_lng, expected_duration, preferred_language, preferred_gender) 
-                  VALUES (:client_id, :patient_name, :patient_age, :medical_condition, :special_needs, :service_needed, :pickup_location, :pickup_lat, :pickup_lng, :dropoff_location, :dropoff_lat, :dropoff_lng, :expected_duration, :preferred_language, :preferred_gender)";
+        // INCLUDES preferred_race in the INSERT query
+        $query = "INSERT INTO bookings (client_id, patient_name, patient_age, medical_condition, special_needs, service_needed, pickup_location, pickup_lat, pickup_lng, dropoff_location, dropoff_lat, dropoff_lng, expected_duration, preferred_language, preferred_gender, preferred_race) 
+                  VALUES (:client_id, :patient_name, :patient_age, :medical_condition, :special_needs, :service_needed, :pickup_location, :pickup_lat, :pickup_lng, :dropoff_location, :dropoff_lat, :dropoff_lng, :expected_duration, :preferred_language, :preferred_gender, :preferred_race)";
         
         $stmt = $db->prepare($query);
         $stmt->execute([
@@ -30,7 +31,8 @@ if (!empty($data['client_id']) && !empty($data['service_needed'])) {
             ':dropoff_lng' => $data['dropoff_lng'],
             ':expected_duration' => $data['expected_duration'],
             ':preferred_language' => $data['preferred_language'],
-            ':preferred_gender' => $data['preferred_gender']
+            ':preferred_gender' => $data['preferred_gender'],
+            ':preferred_race' => $data['preferred_race'] // Added Race Preference!
         ]);
 
         echo json_encode(["success" => true, "message" => "Booking submitted successfully!"]);

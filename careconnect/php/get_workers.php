@@ -1,7 +1,14 @@
 <?php
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With, Accept");
+
+// Handle preflight CORS requests from dashboard.html
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 include_once 'db_connect.php';
 
@@ -10,7 +17,8 @@ $db = $database->getConnection();
 
 try {
     // We join the users table and worker_details table to get everything we need
-    $query = "SELECT u.id, u.name, u.email, u.phone, u.address, u.gender, u.ic_number, u.profile_image,
+    // ADDED: u.race, u.spoken_language (Everything else is your exact original code)
+    $query = "SELECT u.id, u.name, u.email, u.phone, u.address, u.gender, u.ic_number, u.profile_image, u.race, u.spoken_language,
                      w.is_verified, w.mobility_service, w.physio_service, w.nursing_service,
                      w.profile_pic_url, w.ic_doc_url, w.license_doc_url, w.cert_doc_url
               FROM users u
@@ -54,9 +62,11 @@ try {
             "email" => $row['email'],
             "address" => $row['address'],
             "gender" => $row['gender'],
+            "race" => $row['race'] ?? 'Malay', // NEW: Added Race
+            "language" => $row['spoken_language'] ?? 'Malay', // NEW: Added Language
             "ic" => $row['ic_number'],
             "profile_pic" => $profilePicUrl,
-            "passport_doc" => $row['profile_pic_url'], // NEW: Safely pulling the passport picture from worker_details
+            "passport_doc" => $row['profile_pic_url'], // RESTORED: Safely pulling the passport picture from worker_details
             "ic_doc" => $row['ic_doc_url'],
             "license_doc" => $row['license_doc_url'],
             "cert_doc" => $row['cert_doc_url']

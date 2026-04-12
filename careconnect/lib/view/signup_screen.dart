@@ -47,6 +47,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   String? _selectedGender;
+  String? _selectedRace; // ADDED
+  String? _selectedLanguage; // ADDED
 
   // --- Controllers for Section 2: Account Information ---
   final _emailController = TextEditingController();
@@ -62,7 +64,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _termsConfirmed = false;
 
   // --- Worker Documents (Images & PDFs) ---
-  File? _passportImage; // NEW: Separate variable for the passport photo
+  File? _passportImage; 
   File? _icFile;
   File? _licenseFile;
   File? _certFile;
@@ -118,7 +120,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  // NEW: Pick Passport Style Image Logic
+  // Pick Passport Style Image Logic
   Future<void> _pickPassportImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -241,7 +243,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     String? base64Profile, base64Passport, base64Ic, base64License, base64Cert;
     
     if (_profileImage != null) base64Profile = base64Encode(await _profileImage!.readAsBytes());
-    if (_passportImage != null) base64Passport = base64Encode(await _passportImage!.readAsBytes()); // NEW
+    if (_passportImage != null) base64Passport = base64Encode(await _passportImage!.readAsBytes());
     if (_icFile != null) base64Ic = base64Encode(await _icFile!.readAsBytes());
     if (_licenseFile != null) base64License = base64Encode(await _licenseFile!.readAsBytes());
     if (_certFile != null) base64Cert = base64Encode(await _certFile!.readAsBytes());
@@ -275,12 +277,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
       "age": _ageController.text,
       "phone": _phoneController.text,
       "gender": _selectedGender,
+      "race": _selectedRace ?? 'Malay', // ADDED
+      "spoken_language": _selectedLanguage ?? 'Malay', // ADDED
       "address": _addressController.text,
       "email": _emailController.text,
       "password": _passwordController.text,
       "role": _selectedRole,
       "profile_image": base64Profile, 
-      "passport_image": base64Passport, // NEW
+      "passport_image": base64Passport,
       "ic_image": base64Ic,
       "license_image": base64License,
       "cert_image": base64Cert,
@@ -444,6 +448,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
             onChanged: (val) => setState(() => _selectedGender = val),
           ),
           const SizedBox(height: 12),
+          // ADDED: Race Dropdown
+          DropdownButtonFormField<String>(
+            value: _selectedRace,
+            decoration: _inputDecoration('Race', Icons.groups),
+            items: ['Malay', 'Chinese', 'Indian'].map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+            onChanged: (val) => setState(() => _selectedRace = val),
+          ),
+          const SizedBox(height: 12),
+          // ADDED: Language Dropdown
+          DropdownButtonFormField<String>(
+            value: _selectedLanguage,
+            decoration: _inputDecoration('Primary Spoken Language', Icons.language),
+            items: ['Malay', 'English', 'Mandarin', 'Tamil'].map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
+            onChanged: (val) => setState(() => _selectedLanguage = val),
+          ),
+          const SizedBox(height: 12),
           _buildTextField(controller: _addressController, label: 'Current Address', icon: Icons.home_outlined, maxLines: 2),
         ],
       ),
@@ -520,7 +540,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
           const Text('Certificate Documents', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
           const SizedBox(height: 10),
           
-          // UPDATED: Now uses the new Passport Image picker instead of the Profile Image picker!
           _buildUploadItem('Passport Style Picture (Image)', Icons.portrait_outlined, _passportImage, _pickPassportImage),
           _buildUploadItem('I/C or Passport (PDF)', Icons.picture_as_pdf_outlined, _icFile, () => _pickDocumentFile('IC')),
           _buildUploadItem('Driving License (PDF)', Icons.picture_as_pdf_outlined, _licenseFile, () => _pickDocumentFile('License')),
