@@ -34,20 +34,23 @@ $w_lang = $worker ? $worker['spoken_language'] : '';
 
 // 3. SMART MATCHING: Fetch "Pending" bookings within 5 KM that match the Worker's attributes
 if ($worker_lat != 0 && $worker_lng != 0) {
-    $query = "SELECT id, patient_name as client_name, service_needed, pickup_location as location, 
-              DATE_FORMAT(created_at, '%b %d, %h:%i %p') as date, 
-              CONCAT(medical_condition, ' - ', special_needs) as details,
-              (6371 * acos(cos(radians(:w_lat)) * cos(radians(pickup_lat)) * cos(radians(pickup_lng) - radians(:w_lng)) + sin(radians(:w_lat)) * sin(radians(pickup_lat)))) AS distance 
-              FROM bookings 
-              WHERE status = 'Pending' 
-              AND (worker_id IS NULL OR worker_id != :w_id) 
-              AND (preferred_gender = 'Any' OR preferred_gender = :w_gender)
-              AND (preferred_language = 'Any' OR preferred_language = :w_lang)
-              AND (preferred_race = 'Any' OR preferred_race = :w_race)
-              AND pickup_lat IS NOT NULL 
-              AND pickup_lng IS NOT NULL 
+    // UPDATED: JOIN users u to grab the Client's profile_image, name, and phone
+    $query = "SELECT b.id, b.patient_name, b.patient_age, b.medical_condition, b.special_needs,
+              b.service_needed, b.pickup_location as location, 
+              DATE_FORMAT(b.created_at, '%b %d, %h:%i %p') as date, 
+              u.name as client_name, u.phone as client_phone, u.profile_image as client_image,
+              (6371 * acos(cos(radians(:w_lat)) * cos(radians(b.pickup_lat)) * cos(radians(b.pickup_lng) - radians(:w_lng)) + sin(radians(:w_lat)) * sin(radians(b.pickup_lat)))) AS distance 
+              FROM bookings b
+              JOIN users u ON b.client_id = u.id
+              WHERE b.status = 'Pending' 
+              AND (b.worker_id IS NULL OR b.worker_id != :w_id) 
+              AND (b.preferred_gender = 'Any' OR b.preferred_gender = :w_gender)
+              AND (b.preferred_language = 'Any' OR b.preferred_language = :w_lang)
+              AND (b.preferred_race = 'Any' OR b.preferred_race = :w_race)
+              AND b.pickup_lat IS NOT NULL 
+              AND b.pickup_lng IS NOT NULL 
               HAVING distance <= 5 
-              ORDER BY distance ASC, created_at DESC";
+              ORDER BY distance ASC, b.created_at DESC";
               
     $stmt = $db->prepare($query);
     $stmt->bindParam(':w_lat', $worker_lat);

@@ -28,7 +28,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
   bool _isCancelling = false;
   bool _hasPromptedApproval = false; // Prevents spamming the approval popup
 
-  // NEW: State for the latest history item
+  // State for the latest history item
   Map<String, dynamic>? _latestHistoryItem;
   bool _isLoadingHistory = true;
 
@@ -167,33 +167,150 @@ class _ClientDashboardState extends State<ClientDashboard> {
     );
   }
 
-  // --- Worker Approval Dialog ---
+  // --- Worker Approval Dialog (ID BADGE STYLE) ---
   void _showWorkerApprovalDialog() {
+    final workerName = _activeService!['worker_name'] ?? 'Worker';
+    final workerPhone = _activeService!['worker_phone'] ?? 'N/A';
+    final workerGender = _activeService!['worker_gender'] ?? 'Not specified';
+    final workerAge = _activeService!['worker_age']?.toString() ?? 'N/A';
+    final workerRace = _activeService!['worker_race'] ?? 'Not specified';
+    final workerLanguage = _activeService!['worker_language'] ?? 'Not specified';
+    
+    // STRICTLY use the passport photo uploaded in documents!
+    final passportImg = _activeService!['worker_passport'];
+
     showDialog(
       context: context,
       barrierDismissible: false, // Forces client to make a choice
-      builder: (context) => AlertDialog(
+      builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Worker Found!', style: TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
-        content: Text('${_activeService!['worker_name']} has accepted your care request. Do you want to approve this worker?'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _declineWorker();
-            }, 
-            child: const Text('Decline', style: TextStyle(color: Colors.red))
+        child: SingleChildScrollView( 
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Worker Found!', style: TextStyle(color: Color(0xFF6B3F69), fontSize: 24, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                const Text('Review the worker details below before approving.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
+                const SizedBox(height: 20),
+                
+                // Worker Passport Picture (Vertical Badge Style)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: passportImg != null && passportImg.toString().isNotEmpty
+                      ? Image.network(
+                          'https://arcadiusengine.xyz/careconnect/$passportImg',
+                          width: 130,
+                          height: 160,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
+                        )
+                      : _buildPlaceholderImage(),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Comprehensive Details Grid
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: Colors.grey.shade200)
+                  ),
+                  child: Column(
+                    children: [
+                      _buildInfoRow(Icons.person, 'Full Name', workerName),
+                      const Divider(height: 20, color: Colors.black12),
+                      Row(
+                        children: [
+                          Expanded(child: _buildInfoRow(Icons.cake, 'Age', '$workerAge yrs')),
+                          Expanded(child: _buildInfoRow(Icons.wc, 'Gender', workerGender)),
+                        ],
+                      ),
+                      const Divider(height: 20, color: Colors.black12),
+                      Row(
+                        children: [
+                          Expanded(child: _buildInfoRow(Icons.groups, 'Race', workerRace)),
+                          Expanded(child: _buildInfoRow(Icons.language, 'Language', workerLanguage)),
+                        ],
+                      ),
+                      const Divider(height: 20, color: Colors.black12),
+                      _buildInfoRow(Icons.phone, 'Phone Number', workerPhone),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 25),
+                
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _declineWorker();
+                        }, 
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: Colors.redAccent),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                        ),
+                        child: const Text('Decline', style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold))
+                      )
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _approveWorker();
+                        }, 
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: Colors.green,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                        ),
+                        child: const Text('Approve', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      )
+                    ),
+                  ]
+                )
+              ],
+            ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _approveWorker();
-            }, 
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Approve', style: TextStyle(color: Colors.white)),
-          )
-        ]
-      )
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderImage() {
+    return Container(
+      width: 130,
+      height: 160,
+      color: Colors.grey.shade200,
+      child: const Icon(Icons.portrait, size: 60, color: Colors.grey),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(icon, size: 20, color: const Color(0xFF6B3F69)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+            ],
+          ),
+        )
+      ],
     );
   }
 
@@ -530,7 +647,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
     );
   }
 
-  // --- PIZZA HUT STYLE TRACKER & APPROVAL BUTTONS ---
+  // --- TRACKER & ACTIVE JOB CARD ---
   Widget _buildActiveJobCard() {
     String currentStatus = _activeService!['status'] ?? 'Pending_Approval';
     String serviceType = _activeService!['service_needed'] ?? '';
@@ -576,10 +693,11 @@ class _ClientDashboardState extends State<ClientDashboard> {
               CircleAvatar(
                 radius: 25,
                 backgroundColor: Colors.grey.shade200,
-                backgroundImage: (_activeService!['worker_image'] != null && _activeService!['worker_image'].toString().isNotEmpty)
-                    ? NetworkImage('https://arcadiusengine.xyz/careconnect/${_activeService!['worker_image']}')
+                // STRICTLY Use passport image for active tracker card as well!
+                backgroundImage: (_activeService!['worker_passport'] != null && _activeService!['worker_passport'].toString().isNotEmpty)
+                    ? NetworkImage('https://arcadiusengine.xyz/careconnect/${_activeService!['worker_passport']}')
                     : null,
-                child: (_activeService!['worker_image'] == null || _activeService!['worker_image'].toString().isEmpty)
+                child: (_activeService!['worker_passport'] == null || _activeService!['worker_passport'].toString().isEmpty)
                     ? const Icon(Icons.person, color: Colors.grey)
                     : null,
               ),
@@ -744,7 +862,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
     );
   }
 
-  // UPDATED: Now dynamically shows the latest history item just like the Worker Dashboard
   Widget _buildBookingHistoryCard() {
     return InkWell(
       onTap: () {

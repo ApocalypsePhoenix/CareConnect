@@ -11,16 +11,17 @@ $worker_id = isset($_GET['worker_id']) ? $_GET['worker_id'] : null;
 try {
     if ($worker_id) {
         // Worker is asking: Get the client's details
-        // ADDED 'Pending_Approval' to the list below
         $stmt = $db->prepare("SELECT b.*, u.name as client_name, u.phone as client_phone 
                               FROM bookings b JOIN users u ON b.client_id = u.id 
                               WHERE b.worker_id = :w_id AND b.status IN ('Pending_Approval', 'Accepted', 'On_The_Way', 'Arrived', 'In_Progress') LIMIT 1");
         $stmt->execute([':w_id' => $worker_id]);
     } else if ($client_id) {
         // Client is asking: Get the worker's details
-        // ADDED 'Pending_Approval' to the list below
-        $stmt = $db->prepare("SELECT b.*, u.name as worker_name, u.phone as worker_phone, u.profile_image as worker_image 
-                              FROM bookings b JOIN users u ON b.worker_id = u.id 
+        // FIX: Added gender, age, race, language, and worker_passport (from worker_details)
+        $stmt = $db->prepare("SELECT b.*, u.name as worker_name, u.phone as worker_phone, u.gender as worker_gender, u.age as worker_age, u.race as worker_race, u.spoken_language as worker_language, w.profile_pic_url as worker_passport 
+                              FROM bookings b 
+                              JOIN users u ON b.worker_id = u.id 
+                              LEFT JOIN worker_details w ON u.id = w.user_id
                               WHERE b.client_id = :c_id AND b.status IN ('Pending_Approval', 'Accepted', 'On_The_Way', 'Arrived', 'In_Progress') LIMIT 1");
         $stmt->execute([':c_id' => $client_id]);
     } else {

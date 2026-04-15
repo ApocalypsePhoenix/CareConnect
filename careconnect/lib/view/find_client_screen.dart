@@ -17,23 +17,23 @@ class _FindClientScreenState extends State<FindClientScreen> {
   bool _isBusy = false; // Tracks if the worker currently has an active job
   Timer? _pollingTimer; // Timer to fetch live data
   
-  double? _currentLat; // Store worker's latitude
-  double? _currentLng; // Store worker's longitude
+  double? _currentLat; 
+  double? _currentLng; 
 
   List<Map<String, dynamic>> _incomingRequests = [];
   
-  // FIXED: Added 'static' so the memory survives even if the worker goes back to the Dashboard!
+  // Memory to prevent declined requests from popping back up
   static final Set<int> _ignoredRequestIds = {};
 
   @override
   void initState() {
     super.initState();
-    _checkIfBusy(); // Check if they have an active job the moment they open the screen
+    _checkIfBusy(); 
   }
 
   @override
   void dispose() {
-    _pollingTimer?.cancel(); // Important: Stop the timer when they leave the screen
+    _pollingTimer?.cancel(); 
     super.dispose();
   }
 
@@ -68,7 +68,6 @@ class _FindClientScreenState extends State<FindClientScreen> {
     return true;
   }
 
-  // --- Check if worker has an active job before letting them go online ---
   Future<void> _checkIfBusy() async {
     setState(() => _isLoading = true);
     final result = await MysqlApiService.getAvailableRequests(widget.user['id'].toString(), 0.0, 0.0);
@@ -84,63 +83,48 @@ class _FindClientScreenState extends State<FindClientScreen> {
     }
   }
 
-  // Toggle visibility status
   Future<void> _toggleVisibility(bool value) async {
-    if (_isBusy) return; // Prevent toggling if they are busy
+    if (_isBusy) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    // If trying to go online, fetch GPS location first!
     if (value == true) {
       bool hasLocation = await _determinePosition();
       if (!hasLocation) {
         setState(() => _isLoading = false);
-        return; // Abort going online if no GPS
+        return; 
       }
     }
 
-    setState(() {
-      _isOnline = value;
-    });
+    setState(() => _isOnline = value);
 
-    // Tell the database the worker is online
     await MysqlApiService.updateWorkerVisibility(widget.user['id'].toString(), _isOnline);
     
     setState(() => _isLoading = false);
 
     if (_isOnline) {
-      // 1. Fetch immediately
       _fetchLiveRequests();
-      // 2. Start a timer to check for new bookings every 10 seconds
       _pollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
         _fetchLiveRequests();
       });
     } else {
-      // If offline, stop the timer and clear the screen
       _pollingTimer?.cancel();
-      setState(() {
-        _incomingRequests.clear();
-      });
+      setState(() => _incomingRequests.clear());
     }
   }
 
   Future<void> _fetchLiveRequests() async {
     if (!_isOnline || _currentLat == null || _currentLng == null) return;
 
-    // Pass the worker's current coordinates to the API
     final result = await MysqlApiService.getAvailableRequests(widget.user['id'].toString(), _currentLat!, _currentLng!);
     if (mounted && result['success'] == true) {
       setState(() {
-        // If the backend says they are busy (they accepted a job on another device, etc)
         if (result['is_busy'] == true) {
           _isBusy = true;
           _isOnline = false;
           _incomingRequests.clear();
           _pollingTimer?.cancel();
         } else {
-          // Filter out any jobs that this worker has previously declined
           final allFetchedRequests = List<Map<String, dynamic>>.from(result['requests'] ?? []);
           _incomingRequests = allFetchedRequests.where((req) {
             return !_ignoredRequestIds.contains(int.parse(req['id'].toString()));
@@ -150,8 +134,24 @@ class _FindClientScreenState extends State<FindClientScreen> {
     }
   }
 
-  // Bottom sheet details
+  // --- UPDATED: Beautiful Detailed Request Bottom Sheet (Self vs Recipient Logic) ---
   void _showRequestDetails(Map<String, dynamic> request) {
+    final clientName = request['client_name']?.toString() ?? 'Client';
+    final clientPhone = request['client_phone']?.toString() ?? 'No phone provided';
+    final clientImage = request['client_image'];
+    
+    final patientName = request['patient_name']?.toString() ?? 'Patient';
+    final patientAge = request['patient_age']?.toString() ?? '?';
+    final condition = request['medical_condition']?.toString() ?? 'Not specified';
+    final needs = request['special_needs']?.toString() ?? 'None';
+    
+    final service = request['service_needed']?.toString() ?? 'N/A';
+    final location = request['location']?.toString() ?? 'N/A';
+    final date = request['date']?.toString() ?? 'N/A';
+
+    // LOGIC: Is the client booking for themselves?
+    bool isSelf = clientName.trim().toLowerCase() == patientName.trim().toLowerCase();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -170,13 +170,98 @@ class _FindClientScreenState extends State<FindClientScreen> {
               child: Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
             ),
             const SizedBox(height: 20),
-            Text('Request from ${request['client_name']}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
-            const SizedBox(height: 15),
             
-            _buildDetailRow(Icons.medical_services_outlined, 'Service', request['service_needed']?.toString() ?? 'N/A'),
-            _buildDetailRow(Icons.location_on_outlined, 'Location', request['location']?.toString() ?? 'N/A'),
-            _buildDetailRow(Icons.calendar_today_outlined, 'Date & Time', request['date']?.toString() ?? 'N/A'),
-            _buildDetailRow(Icons.info_outline, 'Special Needs', request['details']?.toString() ?? 'None'),
+            // --- 1. CLIENT INFO HEADER (The person who booked) ---
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Colors.grey.shade200,
+                  backgroundImage: (clientImage != null && clientImage.toString().isNotEmpty)
+                      ? NetworkImage('https://arcadiusengine.xyz/careconnect/$clientImage')
+                      : null,
+                  child: (clientImage == null || clientImage.toString().isEmpty)
+                      ? const Icon(Icons.person, size: 35, color: Colors.grey)
+                      : null,
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Booked by:', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                      Text(clientName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.phone, size: 14, color: Colors.grey),
+                          const SizedBox(width: 5),
+                          Text(clientPhone, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // --- 2. PATIENT INFO CARD (Self vs Recipient Logic) ---
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDDC3C3).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: const Color(0xFFDDC3C3).withOpacity(0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.medical_information, color: Color(0xFF8D5F8C), size: 20),
+                      const SizedBox(width: 8),
+                      const Text('Patient Details', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                      const Spacer(),
+                      // Dynamic Badge (Self vs Recipient)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isSelf ? Colors.green.shade100 : Colors.blue.shade100, 
+                          borderRadius: BorderRadius.circular(10)
+                        ),
+                        child: Text(
+                          isSelf ? 'Self' : 'Recipient', 
+                          style: TextStyle(fontSize: 10, color: isSelf ? Colors.green : Colors.blue, fontWeight: FontWeight.bold)
+                        ),
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  // Only show patient name if it's a different person (Recipient)
+                  if (!isSelf) ...[
+                    Text('Patient Name: $patientName', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    const SizedBox(height: 4),
+                  ],
+                  
+                  Text('Age: $patientAge years old', style: const TextStyle(fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Text('Condition: $condition', style: const TextStyle(fontSize: 13)),
+                  if (needs.isNotEmpty && needs != 'Not specified') ...[
+                    const SizedBox(height: 4),
+                    Text('Special Needs: $needs', style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w500)),
+                  ]
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // --- 3. JOB DETAILS ---
+            _buildDetailRow(Icons.medical_services_outlined, 'Service Needed', service),
+            _buildDetailRow(Icons.location_on_outlined, 'Location', location),
+            _buildDetailRow(Icons.calendar_today_outlined, 'Date & Time', date),
             
             const SizedBox(height: 30),
             Row(
@@ -242,47 +327,31 @@ class _FindClientScreenState extends State<FindClientScreen> {
   }
 
   Future<void> _handleAction(int requestId, String action) async {
-    // 1. Remove it from the screen instantly for a snappy UI
     setState(() {
       _incomingRequests.removeWhere((req) => int.parse(req['id'].toString()) == requestId);
-      
-      // Memorize the rejected ID so it won't come back on next refresh
       if (action == 'Rejected') {
         _ignoredRequestIds.add(requestId);
       }
     });
     
-    // 2. If they accept, tell the database!
     if (action == 'Accepted') {
-      final result = await MysqlApiService.respondToRequest(
-        requestId.toString(), 
-        widget.user['id'].toString(), 
-        action
-      );
+      final result = await MysqlApiService.respondToRequest(requestId.toString(), widget.user['id'].toString(), action);
       
       if (mounted) {
         if (result['success'] == true) {
-          // THEY ACCEPTED! Lock the screen immediately.
           setState(() {
             _isBusy = true;
             _isOnline = false;
             _pollingTimer?.cancel();
             _incomingRequests.clear();
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Job Accepted! Please check your Active Services.'), backgroundColor: Colors.green)
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job Accepted! Please check your Active Services.'), backgroundColor: Colors.green));
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['message'] ?? 'Failed to accept.'), backgroundColor: Colors.redAccent)
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'] ?? 'Failed to accept.'), backgroundColor: Colors.redAccent));
         }
       }
     } else {
-      // If rejected locally, just show a snackbar
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Request declined. It has been removed from your list.'), backgroundColor: Colors.orange)
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request declined. It has been removed from your list.'), backgroundColor: Colors.orange));
     }
   }
 
@@ -298,7 +367,6 @@ class _FindClientScreenState extends State<FindClientScreen> {
       ),
       body: Column(
         children: [
-          // Visibility Toggle Banner (Hidden if busy)
           if (!_isBusy)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -345,12 +413,11 @@ class _FindClientScreenState extends State<FindClientScreen> {
           
           const SizedBox(height: 20),
 
-          // Request List / States
           Expanded(
             child: _isLoading 
               ? const Center(child: CircularProgressIndicator(color: Color(0xFF6B3F69)))
               : _isBusy 
-                ? _buildBusyState() // <--- Shows if they have an active job
+                ? _buildBusyState() 
                 : !_isOnline
                   ? _buildOfflineState()
                   : _incomingRequests.isEmpty
@@ -362,7 +429,6 @@ class _FindClientScreenState extends State<FindClientScreen> {
     );
   }
 
-  // --- Block the worker if they have an ongoing service ---
   Widget _buildBusyState() {
     return Center(
       child: Padding(
@@ -383,7 +449,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context), // Sends them back to dashboard
+                onPressed: () => Navigator.pop(context), 
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6B3F69),
                   padding: const EdgeInsets.symmetric(vertical: 15),
@@ -428,12 +494,19 @@ class _FindClientScreenState extends State<FindClientScreen> {
     );
   }
 
+  // --- UPDATED: Request List Card with Client Picture & Clear Badges ---
   Widget _buildRequestList() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       itemCount: _incomingRequests.length,
       itemBuilder: (context, index) {
         final request = _incomingRequests[index];
+        final clientImage = request['client_image'];
+        final clientName = request['client_name']?.toString() ?? 'Client';
+        final patientName = request['patient_name']?.toString() ?? 'Patient';
+        
+        final bool isSelf = clientName.trim().toLowerCase() == patientName.trim().toLowerCase();
+
         return Card(
           elevation: 4,
           shadowColor: Colors.black12,
@@ -459,8 +532,43 @@ class _FindClientScreenState extends State<FindClientScreen> {
                     ],
                   ),
                   const SizedBox(height: 15),
-                  Text(request['client_name']?.toString() ?? 'Client', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
+                  
+                  // NEW: Client Picture + Distinct Patient Badge Layout
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 25,
+                        backgroundColor: Colors.grey.shade200,
+                        backgroundImage: (clientImage != null && clientImage.toString().isNotEmpty)
+                            ? NetworkImage('https://arcadiusengine.xyz/careconnect/$clientImage')
+                            : null,
+                        child: (clientImage == null || clientImage.toString().isEmpty)
+                            ? const Icon(Icons.person, color: Colors.grey)
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(clientName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            // Self vs Recipient clear UI in the list
+                            if (isSelf)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(6)),
+                                child: const Text('Booking for: Self', style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                              )
+                            else
+                              Text('Booking for: $patientName (Recipient)', style: const TextStyle(fontSize: 12, color: Colors.blueAccent, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 15),
                   Row(
                     children: [
                       const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
