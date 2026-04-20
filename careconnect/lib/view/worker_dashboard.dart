@@ -20,11 +20,9 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
   bool _isLoadingService = true;
   bool _isUpdatingStatus = false; 
 
-  // NEW: State for the latest history item
   Map<String, dynamic>? _latestHistoryItem;
   bool _isLoadingHistory = true;
 
-  //Timer for auto-refreshing the active service
   Timer? _autoRefreshTimer; 
 
   @override
@@ -32,28 +30,25 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
     super.initState();
     _currentUser = Map<String, dynamic>.from(widget.user);
     _fetchActiveService();
-    _fetchLatestHistory(); // Fetch history when dashboard opens
+    _fetchLatestHistory(); 
     
-    // Start the background timer to fetch active services every 5 seconds
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _fetchActiveService(isBackground: true);
     });
   }
 
-  //To not forget to stop the timer when the screen is closed!
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();
     super.dispose();
   }
 
-  // Fetch only the latest history item for the dashboard card
   Future<void> _fetchLatestHistory() async {
     final result = await MysqlApiService.getBookingHistory(workerId: _currentUser['id'].toString());
     if (mounted) {
       setState(() {
         if (result['success'] == true && (result['history'] as List).isNotEmpty) {
-          _latestHistoryItem = result['history'][0]; // Grab the most recent one
+          _latestHistoryItem = result['history'][0]; 
         } else {
           _latestHistoryItem = null;
         }
@@ -62,7 +57,6 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
     }
   }
 
-  //Detects if the client cancelled the job in the background
   Future<void> _fetchActiveService({bool isBackground = false}) async {
     if (!isBackground) setState(() => _isLoadingService = true);
     
@@ -78,7 +72,6 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
         if (result['success'] == true && result['has_service'] == true) {
           _activeService = result['service'];
         } else {
-          // Job disappeared! Did the client cancel it while we weren't looking?
           if (hadActiveService && oldBookingId != null && isBackground && !_isUpdatingStatus) {
             _checkWhyItDisappeared(oldBookingId);
           }
@@ -88,22 +81,27 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
     }
   }
 
-  //Ask the database what happened to that booking that disappeared from the worker's screen
   Future<void> _checkWhyItDisappeared(String bookingId) async {
     final statusResult = await MysqlApiService.checkBookingStatus(bookingId);
     if (mounted && statusResult['success'] == true) {
       if (statusResult['status'] == 'Cancelled') {
         _showStatusPopup('Service Terminated', 'The client has cancelled this booking. The service is now terminated.', Colors.red, Icons.cancel);
       } else if (statusResult['status'] == 'Completed') {
-        _showStatusPopup('Service Completed', 'This service has been marked as successfully completed.', Colors.green, Icons.check_circle);
+        // THE CLIENT JUST FINISHED PAYING IN THEIR APP!
+        // We use the latest history item to calculate the exact payout so the math matches perfectly!
+        await _fetchLatestHistory(); 
+        if (_latestHistoryItem != null) {
+          _showEarningsPopup(_latestHistoryItem!);
+        } else {
+          _showStatusPopup('Service Completed', 'Payment has been credited to your wallet.', Colors.green, Icons.check_circle);
+        }
       } else if (statusResult['status'] == 'Pending') {
         _showStatusPopup('Request Declined', 'The client declined your request to take this job. You are back in the available pool.', Colors.orange, Icons.person_off);
       }
-      _fetchLatestHistory(); // Update history card since a job just finished/cancelled!
+      _fetchLatestHistory(); 
     }
   }
 
-  //Popup Dialog
   void _showStatusPopup(String title, String message, Color color, IconData icon) {
     showDialog(
       context: context,
@@ -133,7 +131,94 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
     );
   }
 
-  //GPS Geofencing Logic to Prevent Cheating
+  // ====================================================================
+  // THE PAYOUT POPUP: EXACT SAME MATH AS THE CLIENT INVOICE
+  // ====================================================================
+  void _showEarningsPopup(Map<String, dynamic> historyItem) {
+    double serviceAmount = 0.0;
+    String serviceType = historyItem['service_needed'] ?? '';
+    String durationStr = historyItem['expected_duration'] ?? '1 hour';
+    int hours = int.tryParse(durationStr.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
+
+    if (serviceType == 'Mobility Service') {
+      double baseFee = 15.0; 
+      double hourlyRate = 10.0; 
+      double distanceFee = 0.0;
+      if (historyItem['pickup_lat'] != null && historyItem['dropoff_lat'] != null) {
+        double pLat = double.parse(historyItem['pickup_lat'].toString());
+        double pLng = double.parse(historyItem['pickup_lng'].toString());
+        double dLat = double.parse(historyItem['dropoff_lat'].toString());
+        double dLng = double.parse(historyItem['dropoff_lng'].toString());
+        double distanceInMeters = Geolocator.distanceBetween(pLat, pLng, dLat, dLng);
+        distanceFee = (distanceInMeters / 1000) * 1.50; 
+      }
+      serviceAmount = baseFee + (hours * hourlyRate) + distanceFee;
+    } else if (serviceType == 'Physiotherapy/Rehabilitation') {
+      serviceAmount = hours * 50.0;
+    } else {
+      serviceAmount = hours * 30.0;
+    }
+
+    double adminFee = serviceAmount * 0.03; 
+    double workerEarns = serviceAmount - adminFee;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
+                child: const Icon(Icons.account_balance_wallet, size: 50, color: Colors.green),
+              ),
+              const SizedBox(height: 15),
+              const Text('Payment Received!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green)),
+              const SizedBox(height: 5),
+              const Text('Added to your CareConnect Wallet', style: TextStyle(color: Colors.grey, fontSize: 13)),
+              
+              const SizedBox(height: 20),
+              Text('+ RM ${workerEarns.toStringAsFixed(2)}', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.black87)),
+              const SizedBox(height: 20),
+              
+              Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey.shade200)),
+                child: Column(
+                  children: [
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Client Paid', style: TextStyle(color: Colors.black87)), Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))]),
+                    const Divider(height: 20),
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Platform Fee (3%)', style: TextStyle(color: Colors.redAccent, fontSize: 13)), Text('- RM ${adminFee.toStringAsFixed(2)}', style: const TextStyle(color: Colors.redAccent, fontSize: 13))]),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 25),
+              
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _fetchActiveService(isBackground: false); 
+                    _fetchLatestHistory();
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6B3F69), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: const Text('Awesome!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+              )
+            ],
+          ),
+        ),
+      )
+    );
+  }
+
   Future<bool> _verifyLocation(double targetLat, double targetLng, String locationName) async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -152,12 +237,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
 
     Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
 
-    double distanceInMeters = Geolocator.distanceBetween(
-      position.latitude, 
-      position.longitude, 
-      targetLat, 
-      targetLng
-    );
+    double distanceInMeters = Geolocator.distanceBetween(position.latitude, position.longitude, targetLat, targetLng);
 
     if (distanceInMeters > 50) {
       _showError('You are ${distanceInMeters.toInt()} meters away from the $locationName. You must be closer (within 50m) to update your status!');
@@ -173,7 +253,6 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
     );
   }
 
-  //Dynamic Status Updater with GPS checks to prevent cheating
   Future<void> _updateStatus(String newStatus) async {
     if (_activeService == null || _isUpdatingStatus) return;
 
@@ -190,7 +269,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
           return; 
         }
       }
-    } else if (newStatus == 'Completed' && _activeService!['service_needed'] == 'Mobility Service') {
+    } else if (newStatus == 'Pending_Payment' && _activeService!['service_needed'] == 'Mobility Service') {
       if (_activeService!['dropoff_lat'] != null && _activeService!['dropoff_lng'] != null) {
         double dLat = double.parse(_activeService!['dropoff_lat'].toString());
         double dLng = double.parse(_activeService!['dropoff_lng'].toString());
@@ -209,10 +288,6 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
       setState(() => _isUpdatingStatus = false);
       
       if (result['success'] == true) {
-        if (newStatus == 'Completed') {
-          _showStatusPopup('Great Job!', 'You have successfully completed this service.', Colors.green, Icons.check_circle);
-          _fetchLatestHistory(); // Update history immediately
-        }
         _fetchActiveService(isBackground: false); 
       } else {
         _showError('Failed to update status. Please try again.');
@@ -220,7 +295,6 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
     }
   }
 
-  //Cancel Job Logic
   Future<void> _cancelService() async {
     if (_activeService == null || _isUpdatingStatus) return;
 
@@ -250,7 +324,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
         if (result['success'] == true) {
           _showStatusPopup('Job Cancelled', 'You have cancelled the job. The service is now terminated.', Colors.red, Icons.cancel);
           _fetchActiveService(isBackground: false); 
-          _fetchLatestHistory(); // Update history immediately
+          _fetchLatestHistory(); 
         }
       }
     }
@@ -369,7 +443,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
                       TextButton(
                         onPressed: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => BookingHistoryScreen(user: _currentUser)))
-                                   .then((_) => _fetchLatestHistory()); // Refresh when coming back
+                                   .then((_) => _fetchLatestHistory()); 
                         }, 
                         child: const Text('View All')
                       ),
@@ -398,7 +472,6 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
             Navigator.push(context, MaterialPageRoute(builder: (context) => BookingHistoryScreen(user: _currentUser)))
                      .then((_) => _fetchLatestHistory()); 
           } else if (index == 3) {
-            // 2. CHANGE INDEX 3 TO OPEN THE NEW SCREEN
             Navigator.push(context, MaterialPageRoute(builder: (context) => SettingWorkerScreen(user: _currentUser)))
                      .then((updatedUser) {
               if (updatedUser != null) {
@@ -482,9 +555,26 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
       buttonText = serviceType == 'Mobility Service' ? 'Start Trip to Drop-off' : 'Start Service';
       buttonIcon = serviceType == 'Mobility Service' ? Icons.route : Icons.medical_services;
     } else if (currentStatus == 'In_Progress') {
-      nextStatus = 'Completed';
-      buttonText = 'Complete Service';
-      buttonIcon = Icons.check_circle;
+      // NEW: Now updates to Pending_Payment!
+      nextStatus = 'Pending_Payment';
+      buttonText = 'Complete Service (Request Payment)';
+      buttonIcon = Icons.payment;
+    } else if (currentStatus == 'Pending_Payment') {
+      nextStatus = '';
+      buttonText = 'Waiting for Client to Pay...';
+      buttonIcon = Icons.hourglass_empty;
+    }
+
+    int statusIndex = 0;
+    if (currentStatus == 'On_The_Way') statusIndex = 1;
+    if (currentStatus == 'Arrived') statusIndex = 2;
+    if (currentStatus == 'In_Progress' || currentStatus == 'Pending_Payment') statusIndex = 3;
+
+    List<String> stepTitles = [];
+    if (serviceType == 'Mobility Service') {
+      stepTitles = ['Assigned', 'Heading\nto Pickup', 'Arrived\nat Pickup', 'Heading\nto Drop-off'];
+    } else {
+      stepTitles = ['Assigned', 'On The\nWay', 'Arrived\nat Client', 'Service\nOngoing'];
     }
 
     return Container(
@@ -538,7 +628,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: (_isUpdatingStatus || currentStatus == 'Pending_Approval') ? null : () => _updateStatus(nextStatus),
+              onPressed: (_isUpdatingStatus || currentStatus == 'Pending_Approval' || currentStatus == 'Pending_Payment') ? null : () => _updateStatus(nextStatus),
               icon: _isUpdatingStatus 
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
                 : Icon(buttonIcon, color: Colors.white),
@@ -549,7 +639,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: currentStatus == 'In_Progress' 
                   ? Colors.green 
-                  : currentStatus == 'Pending_Approval' 
+                  : (currentStatus == 'Pending_Approval' || currentStatus == 'Pending_Payment')
                     ? Colors.orange 
                     : const Color(0xFF6B3F69),
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -562,12 +652,49 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
           SizedBox(
             width: double.infinity,
             child: TextButton.icon(
-              onPressed: _isUpdatingStatus ? null : _cancelService,
+              onPressed: (_isUpdatingStatus || currentStatus == 'Pending_Payment') ? null : _cancelService,
               icon: const Icon(Icons.cancel_outlined, color: Colors.redAccent),
               label: const Text('Cancel Job', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
             ),
           )
         ],
+      ),
+    );
+  }
+
+  Widget _buildTrackerStep(String title, IconData icon, bool isActive, bool isPassed) {
+    Color color = isPassed || isActive ? const Color(0xFF6B3F69) : Colors.grey.shade400;
+    return Expanded(
+      flex: 2,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isActive ? color.withOpacity(0.15) : (isPassed ? color : Colors.white),
+              shape: BoxShape.circle,
+              border: Border.all(color: color, width: isActive ? 2 : 1),
+            ),
+            child: Icon(icon, color: isPassed ? Colors.white : color, size: 20),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title, 
+            style: TextStyle(fontSize: 10, color: color, fontWeight: isActive ? FontWeight.bold : FontWeight.normal), 
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrackerLine(bool isPassed) {
+    return Expanded(
+      flex: 1,
+      child: Container(
+        margin: const EdgeInsets.only(top: 18),
+        height: 3,
+        color: isPassed ? const Color(0xFF6B3F69) : Colors.grey.shade300,
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart'; 
 import '../services/mysql_api_service.dart';
 import 'recipient_screen.dart';
 import 'settingclient_screen.dart'; 
@@ -23,12 +24,10 @@ class _ClientDashboardState extends State<ClientDashboard> {
   
   late Map<String, dynamic> _currentUser;
   
-  // Timer for auto-refreshing the live tracker
   Timer? _autoRefreshTimer; 
   bool _isCancelling = false;
-  bool _hasPromptedApproval = false; // Prevents spamming the approval popup
+  bool _hasPromptedApproval = false; 
 
-  // State for the latest history item
   Map<String, dynamic>? _latestHistoryItem;
   bool _isLoadingHistory = true;
 
@@ -38,28 +37,25 @@ class _ClientDashboardState extends State<ClientDashboard> {
     _currentUser = Map<String, dynamic>.from(widget.user);
     _fetchRecipients();
     _fetchActiveService();
-    _fetchLatestHistory(); // Fetch history when dashboard opens
+    _fetchLatestHistory(); 
     
-    // Start the background timer to fetch active services every 5 seconds
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _fetchActiveService(isBackground: true);
     });
   }
 
-  // Don't forget to stop the timer when the screen is closed!
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();
     super.dispose();
   }
 
-  // Fetch only the latest history item for the dashboard card
   Future<void> _fetchLatestHistory() async {
     final result = await MysqlApiService.getBookingHistory(clientId: _currentUser['id'].toString());
     if (mounted) {
       setState(() {
         if (result['success'] == true && (result['history'] as List).isNotEmpty) {
-          _latestHistoryItem = result['history'][0]; // Grab the most recent one
+          _latestHistoryItem = result['history'][0]; 
         } else {
           _latestHistoryItem = null;
         }
@@ -82,7 +78,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
     }
   }
 
-  // Accepts an optional 'isBackground' parameter to hide the loading spinner
   Future<void> _fetchActiveService({bool isBackground = false}) async {
     if (!isBackground) {
       setState(() => _isLoadingService = true);
@@ -102,18 +97,16 @@ class _ClientDashboardState extends State<ClientDashboard> {
         if (result['success'] == true && result['has_service'] == true) {
           _activeService = result['service'];
           
-          // Trigger approval popup if status is Pending_Approval
           if (_activeService!['status'] == 'Pending_Approval' && !_hasPromptedApproval) {
             _hasPromptedApproval = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _showWorkerApprovalDialog();
             });
           } else if (_activeService!['status'] != 'Pending_Approval') {
-            _hasPromptedApproval = false; // Reset if status moves forward
+            _hasPromptedApproval = false; 
           }
 
         } else {
-          // It disappeared! Let's find out why (only if we didn't cancel it ourselves)
           if (hadActiveService && oldBookingId != null && isBackground && !_isCancelling) {
              _checkWhyItDisappeared(oldBookingId);
           }
@@ -124,20 +117,182 @@ class _ClientDashboardState extends State<ClientDashboard> {
     }
   }
 
-  // --- Ask the database what happened ---
   Future<void> _checkWhyItDisappeared(String bookingId) async {
     final statusResult = await MysqlApiService.checkBookingStatus(bookingId);
     if (mounted && statusResult['success'] == true) {
-      if (statusResult['status'] == 'Completed') {
-        _showStatusPopup('Service Completed!', 'The worker has successfully completed your care service.', Colors.green, Icons.check_circle);
-      } else if (statusResult['status'] == 'Cancelled') {
+      if (statusResult['status'] == 'Cancelled') {
         _showStatusPopup('Service Terminated', 'The assigned worker has cancelled the booking. The service is now terminated.', Colors.red, Icons.cancel);
+        _fetchLatestHistory(); 
       }
-      _fetchLatestHistory(); // Refresh history card since a job just finished/cancelled!
     }
   }
 
-  // --- Beautiful Custom Popup Dialog ---
+  // ====================================================================
+  // BEAUTIFUL DUMMY PAYMENT GATEWAY (DYNAMIC CALCULATION)
+  // ====================================================================
+  void _showDummyPaymentDialog() {
+    bool isProcessing = false;
+    bool isSuccess = false;
+    
+    double serviceAmount = 0.0;
+    String serviceType = _activeService?['service_needed'] ?? '';
+    String durationStr = _activeService?['expected_duration'] ?? '1 hour';
+    
+    int hours = int.tryParse(durationStr.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
+
+    if (serviceType == 'Mobility Service') {
+      double baseFee = 15.0; 
+      double hourlyRate = 10.0; 
+      double distanceFee = 0.0;
+      
+      if (_activeService?['pickup_lat'] != null && _activeService?['dropoff_lat'] != null) {
+        double pLat = double.parse(_activeService!['pickup_lat'].toString());
+        double pLng = double.parse(_activeService!['pickup_lng'].toString());
+        double dLat = double.parse(_activeService!['dropoff_lat'].toString());
+        double dLng = double.parse(_activeService!['dropoff_lng'].toString());
+        
+        double distanceInMeters = Geolocator.distanceBetween(pLat, pLng, dLat, dLng);
+        double distanceInKm = distanceInMeters / 1000;
+        distanceFee = distanceInKm * 1.50; 
+      }
+      serviceAmount = baseFee + (hours * hourlyRate) + distanceFee;
+      
+    } else if (serviceType == 'Physiotherapy/Rehabilitation') {
+      serviceAmount = hours * 50.0;
+    } else {
+      serviceAmount = hours * 30.0;
+    }
+
+    double adminFee = serviceAmount * 0.03; 
+    double workerEarns = serviceAmount - adminFee;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, 
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: isSuccess
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle, color: Colors.green, size: 80),
+                          const SizedBox(height: 20),
+                          const Text('Payment Successful!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green)),
+                          const SizedBox(height: 10),
+                          const Text('The payment has been successfully released to the Gig Worker.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(context); 
+                                _fetchActiveService(isBackground: false); 
+                                _fetchLatestHistory(); 
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green, 
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                              ),
+                              child: const Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            ),
+                          )
+                        ],
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.receipt_long, size: 60, color: Color(0xFF6B3F69)),
+                          const SizedBox(height: 15),
+                          const Text('Service Completed', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Please complete your payment. The system automatically deducts a 3% fee for platform maintenance and sustainability.', 
+                            textAlign: TextAlign.center, 
+                            style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4)
+                          ),
+                          const SizedBox(height: 20),
+                          
+                          Container(
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50, 
+                              borderRadius: BorderRadius.circular(15), 
+                              border: Border.all(color: Colors.grey.shade200)
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+                                  children: [const Text('Total Service Fee', style: TextStyle(color: Colors.black87)), Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))]
+                                ),
+                                const Divider(height: 25),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+                                  children: [const Text('Platform Fee (3%)', style: TextStyle(color: Colors.redAccent, fontSize: 12)), Text('- RM ${adminFee.toStringAsFixed(2)}', style: const TextStyle(color: Colors.redAccent, fontSize: 12))]
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+                                  children: [const Text('Worker Receives', style: TextStyle(color: Colors.green, fontSize: 12)), Text('RM ${workerEarns.toStringAsFixed(2)}', style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold))]
+                                ),
+                                const Divider(height: 25),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+                                  children: [const Text('Total to Pay', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF6B3F69)))]
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 25),
+                          
+                          SizedBox(
+                            width: double.infinity,
+                            height: 55,
+                            child: ElevatedButton(
+                              onPressed: isProcessing ? null : () async {
+                                setDialogState(() => isProcessing = true);
+                                
+                                await Future.delayed(const Duration(seconds: 2));
+
+                                // FIX: ACTUALLY UPDATE THE DATABASE TO COMPLETED!
+                                final result = await MysqlApiService.updateServiceStatus(_activeService!['id'].toString(), 'Completed');
+
+                                if (result['success'] == true) {
+                                  setDialogState(() {
+                                    isProcessing = false;
+                                    isSuccess = true;
+                                  });
+                                } else {
+                                  setDialogState(() => isProcessing = false);
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment failed to update database.')));
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF6B3F69), 
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))
+                              ),
+                              child: isProcessing
+                                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                  : Text('Pay RM ${serviceAmount.toStringAsFixed(2)} Now', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                            ),
+                          )
+                        ],
+                      ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+  // ====================================================================
+
   void _showStatusPopup(String title, String message, Color color, IconData icon) {
     showDialog(
       context: context,
@@ -167,7 +322,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
     );
   }
 
-  // --- Worker Approval Dialog (ID BADGE STYLE) ---
   void _showWorkerApprovalDialog() {
     final workerName = _activeService!['worker_name'] ?? 'Worker';
     final workerPhone = _activeService!['worker_phone'] ?? 'N/A';
@@ -176,12 +330,11 @@ class _ClientDashboardState extends State<ClientDashboard> {
     final workerRace = _activeService!['worker_race'] ?? 'Not specified';
     final workerLanguage = _activeService!['worker_language'] ?? 'Not specified';
     
-    // STRICTLY use the passport photo uploaded in documents!
     final passportImg = _activeService!['worker_passport'];
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Forces client to make a choice
+      barrierDismissible: false, 
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: SingleChildScrollView( 
@@ -195,7 +348,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
                 const Text('Review the worker details below before approving.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 20),
                 
-                // Worker Passport Picture (Vertical Badge Style)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(15),
                   child: passportImg != null && passportImg.toString().isNotEmpty
@@ -211,7 +363,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
                 
                 const SizedBox(height: 20),
                 
-                // Comprehensive Details Grid
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
@@ -244,7 +395,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
                 
                 const SizedBox(height: 25),
                 
-                // Action Buttons
                 Row(
                   children: [
                     Expanded(
@@ -332,7 +482,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
     }
   }
 
-  // --- Cancel Booking Logic ---
   Future<void> _cancelService() async {
     if (_activeService == null || _isCancelling) return;
 
@@ -362,7 +511,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
         if (result['success'] == true) {
           _showStatusPopup('Booking Cancelled', 'You have successfully cancelled the booking. The service is now terminated.', Colors.red, Icons.cancel);
           _fetchActiveService(isBackground: false); 
-          _fetchLatestHistory(); // Refresh history card
+          _fetchLatestHistory(); 
         }
       }
     }
@@ -481,7 +630,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                       const Text('Active Services', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                       IconButton(
                         icon: const Icon(Icons.refresh, color: Color(0xFF6B3F69)),
-                        onPressed: () => _fetchActiveService(isBackground: false), // Allows manual refresh with loading spinner
+                        onPressed: () => _fetchActiveService(isBackground: false), 
                       )
                     ],
                   ),
@@ -503,7 +652,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                       TextButton(
                         onPressed: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => BookingHistoryScreen(user: _currentUser)))
-                                   .then((_) => _fetchLatestHistory()); // Refresh when coming back
+                                   .then((_) => _fetchLatestHistory()); 
                         }, 
                         child: const Text('View All')
                       ),
@@ -647,7 +796,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
     );
   }
 
-  // --- TRACKER & ACTIVE JOB CARD ---
   Widget _buildActiveJobCard() {
     String currentStatus = _activeService!['status'] ?? 'Pending_Approval';
     String serviceType = _activeService!['service_needed'] ?? '';
@@ -655,7 +803,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
     int statusIndex = 0;
     if (currentStatus == 'On_The_Way') statusIndex = 1;
     if (currentStatus == 'Arrived') statusIndex = 2;
-    if (currentStatus == 'In_Progress') statusIndex = 3;
+    if (currentStatus == 'In_Progress' || currentStatus == 'Pending_Payment') statusIndex = 3;
 
     List<String> stepTitles = [];
     if (serviceType == 'Mobility Service') {
@@ -693,7 +841,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
               CircleAvatar(
                 radius: 25,
                 backgroundColor: Colors.grey.shade200,
-                // STRICTLY Use passport image for active tracker card as well!
                 backgroundImage: (_activeService!['worker_passport'] != null && _activeService!['worker_passport'].toString().isNotEmpty)
                     ? NetworkImage('https://arcadiusengine.xyz/careconnect/${_activeService!['worker_passport']}')
                     : null,
@@ -725,8 +872,35 @@ class _ClientDashboardState extends State<ClientDashboard> {
 
           const SizedBox(height: 20),
           
-          // If pending approval, show Approve/Decline buttons instead of Tracker
-          if (currentStatus == 'Pending_Approval')
+          // FIX: Added Payment Required Box
+          if (currentStatus == 'Pending_Payment')
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(15)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Payment Required', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                  const SizedBox(height: 10),
+                  const Text('The worker has completed the service. Please make payment to finalize the job.', style: TextStyle(fontSize: 13)),
+                  const SizedBox(height: 15),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showDummyPaymentDialog(),
+                      icon: const Icon(Icons.payment, color: Colors.white),
+                      label: const Text('Make Payment', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                      ),
+                    ),
+                  )
+                ]
+              )
+            )
+          else if (currentStatus == 'Pending_Approval')
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(15)),
@@ -760,7 +934,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
               )
             )
           else
-            // Progress Tracker UI
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(15)),
@@ -786,22 +959,24 @@ class _ClientDashboardState extends State<ClientDashboard> {
             ),
 
           const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: TextButton.icon(
-              onPressed: _isCancelling ? null : _cancelService,
-              icon: _isCancelling 
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.redAccent, strokeWidth: 2))
-                : const Icon(Icons.cancel_outlined, color: Colors.redAccent),
-              label: Text(_isCancelling ? 'Cancelling...' : 'Cancel Booking', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-            ),
-          )
+          
+          // FIX: Disable the Cancel button if they are pending payment
+          if (currentStatus != 'Pending_Payment')
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: _isCancelling ? null : _cancelService,
+                icon: _isCancelling 
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.redAccent, strokeWidth: 2))
+                  : const Icon(Icons.cancel_outlined, color: Colors.redAccent),
+                label: Text(_isCancelling ? 'Cancelling...' : 'Cancel Booking', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+              ),
+            )
         ],
       ),
     );
   }
 
-  // Helper Widget: Individual Tracker Step
   Widget _buildTrackerStep(String title, IconData icon, bool isActive, bool isPassed) {
     Color color = isPassed || isActive ? const Color(0xFF6B3F69) : Colors.grey.shade400;
     return Expanded(
@@ -828,7 +1003,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
     );
   }
 
-  // Helper Widget: Connecting Line
   Widget _buildTrackerLine(bool isPassed) {
     return Expanded(
       flex: 1,

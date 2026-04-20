@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart'; 
 import '../services/mysql_api_service.dart';
 import 'location_search_screen.dart'; 
 
@@ -17,17 +18,15 @@ class _BookingScreenState extends State<BookingScreen> {
   String? _careTarget; 
   
   bool _isLoadingRecipients = true;
-  bool _isSubmitting = false; // Tracks if booking is currently sending to database
+  bool _isSubmitting = false; 
   
   Map<String, dynamic>? _selfRecipient;
   List<dynamic> _otherRecipients = [];
   dynamic _selectedOtherRecipient;
 
-  // Controllers for the UI
   late TextEditingController _primaryLocationController; 
   final TextEditingController _dropoffController = TextEditingController(); 
   
-  // Hold the actual Coordinates (Geocoding logic!)
   double? _pickupLat;
   double? _pickupLng;
   double? _dropoffLat;
@@ -36,15 +35,14 @@ class _BookingScreenState extends State<BookingScreen> {
   String? _expectedDuration;
   String? _preferredLanguage;
   String? _preferredGender;
-  String? _preferredRace; // NEW
+  String? _preferredRace; 
 
   final List<String> _services = ['Mobility Service', 'Physiotherapy/Rehabilitation', 'Daily Assistance/Nursing Care'];
   final List<String> _durations = ['1 hour', '2 hours', '3 hours', '4 hours', '5 hours+'];
   
-  // UPDATED: Added 'Any' to all preferences and cleaned up the lists
   final List<String> _languages = ['Any', 'Malay', 'English', 'Mandarin', 'Tamil'];
   final List<String> _genders = ['Any', 'Male', 'Female']; 
-  final List<String> _races = ['Any', 'Malay', 'Chinese', 'Indian']; // NEW
+  final List<String> _races = ['Any', 'Malay', 'Chinese', 'Indian']; 
 
   @override
   void initState() {
@@ -79,20 +77,11 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  // Opens the LocationSearch Screen
   Future<void> _openLocationSearch(String title, TextEditingController controller, bool isDropoff) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => LocationSearchScreen(title: title)),
-    );
-
-    // If the user selected a location on the next screen
+    final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => LocationSearchScreen(title: title)));
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
-        // 1. Update the UI text box
         controller.text = result['address'];
-        
-        // 2. Store the actual Coordinates for the backend mapping
         if (isDropoff) {
           _dropoffLat = result['lat'];
           _dropoffLng = result['lng'];
@@ -104,21 +93,39 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
+  // --- NEW: Live Estimated Price Calculator ---
+  double _calculateEstimatedPrice() {
+    if (_selectedService == null || _expectedDuration == null) return 0.0;
+    
+    int hours = int.tryParse(_expectedDuration!.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
+    
+    if (_selectedService == 'Mobility Service') {
+      double baseFee = 15.0;
+      double hourlyRate = 10.0;
+      double distanceFee = 0.0;
+      
+      if (_pickupLat != null && _dropoffLat != null) {
+        double distMeters = Geolocator.distanceBetween(_pickupLat!, _pickupLng!, _dropoffLat!, _dropoffLng!);
+        distanceFee = (distMeters / 1000) * 1.50; // RM 1.50 per KM
+      }
+      return baseFee + (hours * hourlyRate) + distanceFee;
+    } else if (_selectedService == 'Physiotherapy/Rehabilitation') {
+      return hours * 50.0;
+    } else {
+      return hours * 30.0;
+    }
+  }
+
   Future<void> _submitBooking() async {
     if (_selectedService == null) return _showError('Please select a service.');
     if (_careTarget == null) return _showError('Please specify who this booking is for.');
     if (_careTarget == 'Others' && _selectedOtherRecipient == null) return _showError('Please select a care recipient.');
     if (_primaryLocationController.text.trim().isEmpty) return _showError('Please select the location.');
     if (_selectedService == 'Mobility Service' && _dropoffController.text.trim().isEmpty) return _showError('Please select the drop-off location.');
-    
-    // UPDATED: Included _preferredRace in the validation check
     if (_expectedDuration == null || _preferredLanguage == null || _preferredGender == null || _preferredRace == null) return _showError('Please complete all preferences.');
 
-    setState(() {
-      _isSubmitting = true; // Show loading spinner
-    });
+    setState(() => _isSubmitting = true); 
 
-    // Bundle all the data to send to the PHP API
     final bookingData = {
       'client_id': widget.user['id'].toString(),
       'patient_name': _careTarget == 'Self' ? widget.user['name'] : _selectedOtherRecipient?['name'] ?? '',
@@ -135,34 +142,28 @@ class _BookingScreenState extends State<BookingScreen> {
       'expected_duration': _expectedDuration,
       'preferred_language': _preferredLanguage,
       'preferred_gender': _preferredGender,
-      'preferred_race': _preferredRace, // NEW
+      'preferred_race': _preferredRace, 
     };
 
-    // Send it to the live database
     final result = await MysqlApiService.submitBooking(bookingData);
 
     if (mounted) {
-      setState(() {
-        _isSubmitting = false; // Hide loading spinner
-      });
-
+      setState(() => _isSubmitting = false); 
       if (result['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Booking Confirmed! System has broadcasted your request to available workers.'), backgroundColor: Colors.green)
-        );
-        Navigator.pop(context); // Go back to dashboard
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking Confirmed! System has broadcasted your request to available workers.'), backgroundColor: Colors.green));
+        Navigator.pop(context); 
       } else {
         _showError(result['message'] ?? 'Failed to submit booking. Please try again.');
       }
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
-  }
+  void _showError(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
 
   @override
   Widget build(BuildContext context) {
+    double estimatedPrice = _calculateEstimatedPrice(); // Recalculate on every build
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
@@ -240,7 +241,6 @@ class _BookingScreenState extends State<BookingScreen> {
                     ],
 
                     const Divider(height: 40, thickness: 1),
-                    // LOCATION BUTTONS
                     const Text('Location Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                     const SizedBox(height: 10),
 
@@ -273,19 +273,43 @@ class _BookingScreenState extends State<BookingScreen> {
                     const SizedBox(height: 15),
                     _buildDropdown(value: _preferredGender, hint: 'Preferred Gender', icon: Icons.wc, options: _genders, onChanged: (val) => setState(() => _preferredGender = val)),
                     const SizedBox(height: 15),
-                    // NEW: Preferred Race Dropdown
                     _buildDropdown(value: _preferredRace, hint: 'Preferred Race', icon: Icons.groups, options: _races, onChanged: (val) => setState(() => _preferredRace = val)),
                     const SizedBox(height: 15),
-                    // UPDATED: Preferred Language
                     _buildDropdown(value: _preferredLanguage, hint: 'Preferred Language', icon: Icons.language, options: _languages, onChanged: (val) => setState(() => _preferredLanguage = val)),
 
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 30),
+                    
+                    // --- NEW: ESTIMATED PRICE DISPLAY ---
+                    if (estimatedPrice > 0)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.green.shade200, width: 2)
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Estimated Price', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                                Text('Excludes 3% platform fee', style: TextStyle(fontSize: 10, color: Colors.black54)),
+                              ],
+                            ),
+                            Text('RM ${estimatedPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.green)),
+                          ],
+                        ),
+                      ),
+                    
+                    const SizedBox(height: 20),
 
                     SizedBox(
                       width: double.infinity,
                       height: 55,
                       child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submitBooking, // Disable if submitting
+                        onPressed: _isSubmitting ? null : _submitBooking, 
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF6B3F69),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -302,8 +326,6 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
     );
   }
-
-  // --- Helper Widgets ---
 
   Widget _buildPatientDetailsCard(dynamic patientData) {
     String patientName = patientData['name'] ?? widget.user['name'];
@@ -370,7 +392,7 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget _buildClickableLocationField({required String label, required TextEditingController controller, required VoidCallback onTap, IconData icon = Icons.location_on}) {
     return GestureDetector(
       onTap: onTap,
-      child: AbsorbPointer( // Prevents keyboard from popping up here
+      child: AbsorbPointer(
         child: TextField(
           controller: controller,
           maxLines: 2,
@@ -378,7 +400,7 @@ class _BookingScreenState extends State<BookingScreen> {
           decoration: InputDecoration(
             labelText: label,
             prefixIcon: Icon(icon, color: const Color(0xFF8D5F8C)),
-            suffixIcon: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey), // Arrow indicates it opens a new page
+            suffixIcon: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
