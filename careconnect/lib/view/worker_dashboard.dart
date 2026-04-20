@@ -3,7 +3,8 @@ import 'package:geolocator/geolocator.dart';
 import 'find_client_screen.dart';
 import '../services/mysql_api_service.dart';
 import 'dart:async';
-import 'booking_history_screen.dart'; // NEW: Import the unified history screen
+import 'booking_history_screen.dart'; 
+import 'settingworker_screen.dart';
 
 class WorkerDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -397,7 +398,13 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
             Navigator.push(context, MaterialPageRoute(builder: (context) => BookingHistoryScreen(user: _currentUser)))
                      .then((_) => _fetchLatestHistory()); 
           } else if (index == 3) {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingWorkerScreen()));
+            // 2. CHANGE INDEX 3 TO OPEN THE NEW SCREEN
+            Navigator.push(context, MaterialPageRoute(builder: (context) => SettingWorkerScreen(user: _currentUser)))
+                     .then((updatedUser) {
+              if (updatedUser != null) {
+                setState(() => _currentUser = Map<String, dynamic>.from(updatedUser));
+              }
+            });
           }
         },
         items: const [
@@ -643,17 +650,6 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
                 ],
               ),
       ),
-    );
-  }
-}
-
-class SettingWorkerScreen extends StatelessWidget {
-  const SettingWorkerScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Worker Settings'), backgroundColor: const Color(0xFF6B3F69), foregroundColor: Colors.white),
-      body: const Center(child: Text('Worker Settings Screen Coming Soon!')),
     );
   }
 }
