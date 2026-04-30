@@ -235,7 +235,10 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
       }
     }
 
-    Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    // UPDATED: Replaced deprecated desiredAccuracy with locationSettings
+    Position position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high)
+    );
 
     double distanceInMeters = Geolocator.distanceBetween(position.latitude, position.longitude, targetLat, targetLng);
 
@@ -495,7 +498,8 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFDDC3C3).withOpacity(0.3),
+        // UPDATED: Replaced .withOpacity with .withValues
+        color: const Color(0xFFDDC3C3).withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(25),
         border: Border.all(color: const Color(0xFFDDC3C3)),
       ),
@@ -555,7 +559,6 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
       buttonText = serviceType == 'Mobility Service' ? 'Start Trip to Drop-off' : 'Start Service';
       buttonIcon = serviceType == 'Mobility Service' ? Icons.route : Icons.medical_services;
     } else if (currentStatus == 'In_Progress') {
-      // NEW: Now updates to Pending_Payment!
       nextStatus = 'Pending_Payment';
       buttonText = 'Complete Service (Request Payment)';
       buttonIcon = Icons.payment;
@@ -565,17 +568,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
       buttonIcon = Icons.hourglass_empty;
     }
 
-    int statusIndex = 0;
-    if (currentStatus == 'On_The_Way') statusIndex = 1;
-    if (currentStatus == 'Arrived') statusIndex = 2;
-    if (currentStatus == 'In_Progress' || currentStatus == 'Pending_Payment') statusIndex = 3;
-
-    List<String> stepTitles = [];
-    if (serviceType == 'Mobility Service') {
-      stepTitles = ['Assigned', 'Heading\nto Pickup', 'Arrived\nat Pickup', 'Heading\nto Drop-off'];
-    } else {
-      stepTitles = ['Assigned', 'On The\nWay', 'Arrived\nat Client', 'Service\nOngoing'];
-    }
+    // REMOVED DEAD CODE: statusIndex and stepTitles were deleted from here
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -583,7 +576,8 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
         color: Colors.white, 
         borderRadius: BorderRadius.circular(25), 
         border: Border.all(color: Colors.green.shade200, width: 2),
-        boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5))],
+        // UPDATED: Replaced .withOpacity with .withValues
+        boxShadow: [BoxShadow(color: Colors.green.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 5))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -662,42 +656,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
     );
   }
 
-  Widget _buildTrackerStep(String title, IconData icon, bool isActive, bool isPassed) {
-    Color color = isPassed || isActive ? const Color(0xFF6B3F69) : Colors.grey.shade400;
-    return Expanded(
-      flex: 2,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isActive ? color.withOpacity(0.15) : (isPassed ? color : Colors.white),
-              shape: BoxShape.circle,
-              border: Border.all(color: color, width: isActive ? 2 : 1),
-            ),
-            child: Icon(icon, color: isPassed ? Colors.white : color, size: 20),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            title, 
-            style: TextStyle(fontSize: 10, color: color, fontWeight: isActive ? FontWeight.bold : FontWeight.normal), 
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTrackerLine(bool isPassed) {
-    return Expanded(
-      flex: 1,
-      child: Container(
-        margin: const EdgeInsets.only(top: 18),
-        height: 3,
-        color: isPassed ? const Color(0xFF6B3F69) : Colors.grey.shade300,
-      ),
-    );
-  }
+  // REMOVED DEAD CODE: _buildTrackerStep and _buildTrackerLine were deleted from here
 
   Widget _buildEmptyActiveServiceCard() {
     return Container(

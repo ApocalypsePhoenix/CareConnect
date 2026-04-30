@@ -134,7 +134,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
     }
   }
 
-  // --- UPDATED: Beautiful Detailed Request Bottom Sheet (Self vs Recipient Logic) ---
+  // --- UPDATED: Beautiful Detailed Request Bottom Sheet (Self vs Recipient Logic & Payment) ---
   void _showRequestDetails(Map<String, dynamic> request) {
     final clientName = request['client_name']?.toString() ?? 'Client';
     final clientPhone = request['client_phone']?.toString() ?? 'No phone provided';
@@ -148,6 +148,15 @@ class _FindClientScreenState extends State<FindClientScreen> {
     final service = request['service_needed']?.toString() ?? 'N/A';
     final location = request['location']?.toString() ?? 'N/A';
     final date = request['date']?.toString() ?? 'N/A';
+
+    // Format Duration
+    String durationText = request['duration']?.toString() ?? 'N/A';
+    if (durationText.isNotEmpty && durationText != 'N/A') {
+      durationText = durationText[0].toUpperCase() + durationText.substring(1);
+    }
+
+    // Format Payment
+    final paymentText = request['payment'] != null ? 'RM ${request['payment']}' : 'RM 0.00';
 
     // LOGIC: Is the client booking for themselves?
     bool isSelf = clientName.trim().toLowerCase() == patientName.trim().toLowerCase();
@@ -260,9 +269,34 @@ class _FindClientScreenState extends State<FindClientScreen> {
             
             // --- 3. JOB DETAILS ---
             _buildDetailRow(Icons.medical_services_outlined, 'Service Needed', service),
+            _buildDetailRow(Icons.timer_outlined, 'Expected Duration', durationText), // ADDED DURATION
             _buildDetailRow(Icons.location_on_outlined, 'Location', location),
             _buildDetailRow(Icons.calendar_today_outlined, 'Date & Time', date),
             
+            // ADDED PAYMENT HIGHLIGHT
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.payments, color: Colors.green, size: 20),
+                      SizedBox(width: 8),
+                      Text('Expected Payment', style: TextStyle(fontSize: 14, color: Colors.green, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  Text(paymentText, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
+                ],
+              ),
+            ),
+
             const SizedBox(height: 30),
             Row(
               children: [
@@ -409,8 +443,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
                   ),
                 ],
               ),
-            ),
-          
+            ),          
           const SizedBox(height: 20),
 
           Expanded(
@@ -494,7 +527,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
     );
   }
 
-  // --- UPDATED: Request List Card with Client Picture & Clear Badges ---
+  // --- UPDATED: Request List Card with Client Picture, Badges & Payment ---
   Widget _buildRequestList() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -506,6 +539,15 @@ class _FindClientScreenState extends State<FindClientScreen> {
         final patientName = request['patient_name']?.toString() ?? 'Patient';
         
         final bool isSelf = clientName.trim().toLowerCase() == patientName.trim().toLowerCase();
+
+        // Format Duration
+        String durationText = request['duration']?.toString() ?? 'N/A';
+        if (durationText.isNotEmpty && durationText != 'N/A') {
+          durationText = durationText[0].toUpperCase() + durationText.substring(1);
+        }
+
+        // Format Payment
+        final paymentText = request['payment'] != null ? 'RM ${request['payment']}' : 'RM 0.00';
 
         return Card(
           elevation: 4,
@@ -532,8 +574,8 @@ class _FindClientScreenState extends State<FindClientScreen> {
                     ],
                   ),
                   const SizedBox(height: 15),
-                  
-                  // NEW: Client Picture + Distinct Patient Badge Layout
+                    
+                  // Client Picture + Distinct Patient Badge Layout
                   Row(
                     children: [
                       CircleAvatar(
@@ -586,7 +628,38 @@ class _FindClientScreenState extends State<FindClientScreen> {
                       Text(request['date']?.toString() ?? '', style: const TextStyle(color: Colors.grey, fontSize: 13)),
                     ],
                   ),
-                  const Divider(height: 30),
+
+                  const SizedBox(height: 15),
+                  // ADDED: Green Payment and Duration Banner
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.timer_outlined, size: 16, color: Colors.green),
+                            const SizedBox(width: 6),
+                            Text(durationText, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 13)),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            const Icon(Icons.payments_outlined, size: 18, color: Colors.green),
+                            const SizedBox(width: 6),
+                            Text(paymentText, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 15)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const Divider(height: 25),
                   const Center(
                     child: Text('Tap to view details & Accept', style: TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold, fontSize: 13)),
                   )
