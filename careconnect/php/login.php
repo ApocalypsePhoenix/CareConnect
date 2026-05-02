@@ -18,8 +18,9 @@ $data = json_decode(file_get_contents("php://input"), true);
 
 if (!empty($data['email']) && !empty($data['password'])) {
     try {
-        // UPDATED: Added w.profile_pic_url, w.ic_doc_url, w.license_doc_url, w.cert_doc_url
+        // UPDATED: Added u.account_status, u.warning_count, u.average_rating
         $query = "SELECT u.id, u.name, u.ic_number, u.gender, u.race, u.spoken_language, u.email, u.age, u.phone, u.address, u.password_hash, u.role, u.profile_image, 
+                         u.account_status, u.warning_count, u.average_rating,
                          w.is_verified, w.mobility_service, w.physio_service, w.nursing_service,
                          w.profile_pic_url, w.ic_doc_url, w.license_doc_url, w.cert_doc_url 
                   FROM users u 
@@ -34,6 +35,13 @@ if (!empty($data['email']) && !empty($data['password'])) {
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (password_verify($data['password'], $row['password_hash'])) {
+                
+                // CHECK IF USER IS BANNED
+                if (isset($row['account_status']) && $row['account_status'] === 'Banned') {
+                    http_response_code(403); // Forbidden
+                    echo json_encode(array("success" => false, "message" => "ACCOUNT_BANNED"));
+                    exit;
+                }
                 
                 if ($row['role'] === 'Worker') {
                     if ($row['is_verified'] == 0) {

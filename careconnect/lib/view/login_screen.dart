@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/mysql_api_service.dart';
 import 'signup_screen.dart';
-import 'client_dashboard.dart'; // Import the client dashboard
-import 'worker_dashboard.dart'; // Import the new worker dashboard
+import 'client_dashboard.dart';
+import 'worker_dashboard.dart'; 
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -39,7 +39,39 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (result['success']) {
         final user = result['user'];
+
+        // ==========================================
+        // NEW: CHECK FOR WARNING BEFORE DASHBOARD
+        // ==========================================
+        if (user['account_status'] == 'Warning') {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              title: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+                  SizedBox(width: 10),
+                  Text('Account Warning', style: TextStyle(color: Colors.orange)),
+                ],
+              ),
+              content: Text(
+                'You currently have ${user['warning_count'] ?? 0} warning(s) due to low ratings (2 stars or below).\n\nPlease ensure you maintain high service standards. Reaching 3 warnings will result in a permanent ban.',
+                style: const TextStyle(fontSize: 15),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('I Understand', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                ),
+              ],
+            ),
+          );
+        }
         
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Welcome back, ${user['name']}!'), 
@@ -66,15 +98,50 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         
       } else {
-        // Show error message from server
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Login failed'), 
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        // ==========================================
+        // NEW: CHECK FOR BANNED ACCOUNT
+        // ==========================================
+        if (result['message'] == 'ACCOUNT_BANNED') {
+          _showBannedDialog();
+        } else {
+          // Show normal error message from server (e.g., wrong password)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Login failed'), 
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
       }
     }
+  }
+
+  // --- NEW: BANNED DIALOG UI ---
+  void _showBannedDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Row(
+          children: [
+            Icon(Icons.block, color: Colors.red, size: 28),
+            SizedBox(width: 10),
+            Text('Account Banned', style: TextStyle(color: Colors.red)),
+          ],
+        ),
+        content: const Text(
+          'Your account has been permanently banned from CareConnect due to receiving multiple low ratings.\n\nYou can no longer log in or use the platform.',
+          style: TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

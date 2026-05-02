@@ -6,6 +6,7 @@ import 'settingclient_screen.dart';
 import 'booking_screen.dart';
 import 'dart:async';
 import 'booking_history_screen.dart';
+import 'rating_review_screen.dart'; // Added import for the rating screen
 
 class ClientDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -189,8 +190,22 @@ class _ClientDashboardState extends State<ClientDashboard> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: () async {
                                 Navigator.pop(context); 
+
+                                // --- POP UP THE RATING SYSTEM ---
+                                await showDialog(
+                                  context: context,
+                                  barrierDismissible: false, 
+                                  builder: (context) => RatingReviewScreen(
+                                    bookingId: _activeService!['id'].toString(), 
+                                    reviewerId: widget.user['id'].toString(),   
+                                    revieweeId: _activeService!['worker_id'].toString(), // Client rates the Worker
+                                    revieweeName: _activeService!['worker_name'] ?? 'your Caregiver', 
+                                    reviewerRole: widget.user['role'],          
+                                  ),
+                                );
+
                                 _fetchActiveService(isBackground: false); 
                                 _fetchLatestHistory(); 
                               },
@@ -291,7 +306,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
       },
     );
   }
-  // ====================================================================
 
   void _showStatusPopup(String title, String message, Color color, IconData icon) {
     showDialog(
@@ -609,7 +623,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                       TextButton(
                         onPressed: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => RecipientScreen(user: _currentUser)))
-                                   .then((_) => _fetchRecipients());
+                                     .then((_) => _fetchRecipients());
                         }, 
                         child: const Text('Add New')
                       ),
@@ -652,7 +666,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                       TextButton(
                         onPressed: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => BookingHistoryScreen(user: _currentUser)))
-                                   .then((_) => _fetchLatestHistory()); 
+                                     .then((_) => _fetchLatestHistory()); 
                         }, 
                         child: const Text('View All')
                       ),
@@ -1053,12 +1067,12 @@ class _ClientDashboardState extends State<ClientDashboard> {
                 children: [
                   const Icon(Icons.history, size: 30, color: Colors.blueAccent),
                   const SizedBox(width: 15),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('No Past History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        const Text('Tap "View All" above or this card to see your completed and cancelled bookings.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        Text('No Past History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text('Tap "View All" above or this card to see your completed and cancelled bookings.', style: TextStyle(color: Colors.grey, fontSize: 12)),
                       ],
                     ),
                   ),

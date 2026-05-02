@@ -5,6 +5,7 @@ import '../services/mysql_api_service.dart';
 import 'dart:async';
 import 'booking_history_screen.dart'; 
 import 'settingworker_screen.dart';
+import 'rating_review_screen.dart'; // Added import for the rating screen
 
 class WorkerDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -203,8 +204,24 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    // Close the Earnings Popup
                     Navigator.pop(context);
+
+                    // --- POP UP THE RATING SYSTEM ---
+                    await showDialog(
+                      context: context,
+                      barrierDismissible: false, 
+                      builder: (context) => RatingReviewScreen(
+                        bookingId: historyItem['id'].toString(), 
+                        reviewerId: widget.user['id'].toString(),   
+                        revieweeId: historyItem['client_id'].toString(), // Worker rates the Client
+                        revieweeName: historyItem['client_name'] ?? 'your Client', 
+                        reviewerRole: widget.user['role'],          
+                      ),
+                    );
+                    
+                    // Fetch latest data after rating finishes
                     _fetchActiveService(isBackground: false); 
                     _fetchLatestHistory();
                   },
@@ -446,7 +463,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
                       TextButton(
                         onPressed: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => BookingHistoryScreen(user: _currentUser)))
-                                   .then((_) => _fetchLatestHistory()); 
+                                     .then((_) => _fetchLatestHistory()); 
                         }, 
                         child: const Text('View All')
                       ),
@@ -498,8 +515,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        // UPDATED: Replaced .withOpacity with .withValues
-        color: const Color(0xFFDDC3C3).withValues(alpha: 0.3),
+        color: const Color(0xFFDDC3C3).withOpacity(0.3),
         borderRadius: BorderRadius.circular(25),
         border: Border.all(color: const Color(0xFFDDC3C3)),
       ),
@@ -568,16 +584,13 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
       buttonIcon = Icons.hourglass_empty;
     }
 
-    // REMOVED DEAD CODE: statusIndex and stepTitles were deleted from here
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white, 
         borderRadius: BorderRadius.circular(25), 
         border: Border.all(color: Colors.green.shade200, width: 2),
-        // UPDATED: Replaced .withOpacity with .withValues
-        boxShadow: [BoxShadow(color: Colors.green.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 5))],
+        boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -616,7 +629,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
               Expanded(child: Text('Dropoff: ${_activeService!['dropoff_location']}', style: const TextStyle(fontSize: 14))),
             ]),
           ],
-          
+         
           const Divider(height: 30),
           
           SizedBox(
@@ -656,8 +669,6 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
     );
   }
 
-  // REMOVED DEAD CODE: _buildTrackerStep and _buildTrackerLine were deleted from here
-
   Widget _buildEmptyActiveServiceCard() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -665,7 +676,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
       child: const Row(
         children: [
           Icon(Icons.work_outline, size: 30, color: Color(0xFF8D5F8C)),
-          SizedBox(width: 15),
+          const SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -701,12 +712,12 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
                 children: [
                   const Icon(Icons.history, size: 30, color: Colors.blueAccent),
                   const SizedBox(width: 15),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('No Past History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        const Text('Tap "View All" or the History tab to see your completed and cancelled jobs.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        Text('No Past History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text('Tap "View All" or the History tab to see your completed and cancelled jobs.', style: TextStyle(color: Colors.grey, fontSize: 12)),
                       ],
                     ),
                   ),

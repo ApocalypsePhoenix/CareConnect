@@ -313,4 +313,30 @@ class MysqlApiService {
       return {'success': false, 'message': 'Network error: $e'};
     }
   }
+  // NEW: TWO-WAY REVIEW & RATING API
+  static Future<Map<String, dynamic>> submitReview({
+    required String bookingId,
+    required String reviewerId,
+    required String revieweeId,
+    required int rating,
+    required String comment,
+  }) async {
+    final url = Uri.parse('$_baseUrl/submit_review.php');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'booking_id': bookingId,
+          'reviewer_id': reviewerId,
+          'reviewee_id': revieweeId,
+          'rating': rating,
+          'comment': comment,
+        }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
 }
