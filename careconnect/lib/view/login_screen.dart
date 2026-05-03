@@ -3,6 +3,7 @@ import '../services/mysql_api_service.dart';
 import 'signup_screen.dart';
 import 'client_dashboard.dart';
 import 'worker_dashboard.dart'; 
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED: Localization Import
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,6 +29,9 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
+      // Grab the translation dictionary BEFORE the async API call
+      final l10n = AppLocalizations.of(context)!;
+
       // Call the centralized API service
       final result = await MysqlApiService.login(email, password);
 
@@ -41,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final user = result['user'];
 
         // ==========================================
-        // NEW: CHECK FOR WARNING BEFORE DASHBOARD
+        // CHECK FOR WARNING BEFORE DASHBOARD
         // ==========================================
         if (user['account_status'] == 'Warning') {
           await showDialog(
@@ -49,21 +53,24 @@ class _LoginScreenState extends State<LoginScreen> {
             barrierDismissible: false,
             builder: (context) => AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-                  SizedBox(width: 10),
-                  Text('Account Warning', style: TextStyle(color: Colors.orange)),
+                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+                  const SizedBox(width: 10),
+                  // TRANSLATED: 'Account Warning'
+                  Text(l10n.accountWarning, style: const TextStyle(color: Colors.orange)),
                 ],
               ),
+              // TRANSLATED: Dynamic warning message
               content: Text(
-                'You currently have ${user['warning_count'] ?? 0} warning(s) due to low ratings (2 stars or below).\n\nPlease ensure you maintain high service standards. Reaching 3 warnings will result in a permanent ban.',
+                l10n.warningMessage(user['warning_count'] ?? 0),
                 style: const TextStyle(fontSize: 15),
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('I Understand', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                  // TRANSLATED: 'I Understand'
+                  child: Text(l10n.iUnderstand, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
                 ),
               ],
             ),
@@ -74,7 +81,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Welcome back, ${user['name']}!'), 
+            // TRANSLATED: Dynamic welcome message
+            content: Text(l10n.welcomeBackName(user['name'])), 
             backgroundColor: const Color(0xFF6B3F69),
           ),
         );
@@ -99,15 +107,15 @@ class _LoginScreenState extends State<LoginScreen> {
         
       } else {
         // ==========================================
-        // NEW: CHECK FOR BANNED ACCOUNT
+        // CHECK FOR BANNED ACCOUNT
         // ==========================================
         if (result['message'] == 'ACCOUNT_BANNED') {
-          _showBannedDialog();
+          _showBannedDialog(l10n); // Pass the dictionary to the dialog
         } else {
           // Show normal error message from server (e.g., wrong password)
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result['message'] ?? 'Login failed'), 
+              content: Text(result['message'] ?? l10n.loginFailed), // Translated fallback
               backgroundColor: Colors.redAccent,
             ),
           );
@@ -116,28 +124,31 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // --- NEW: BANNED DIALOG UI ---
-  void _showBannedDialog() {
+  // --- BANNED DIALOG UI ---
+  void _showBannedDialog(AppLocalizations l10n) { // Added l10n parameter
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.block, color: Colors.red, size: 28),
-            SizedBox(width: 10),
-            Text('Account Banned', style: TextStyle(color: Colors.red)),
+            const Icon(Icons.block, color: Colors.red, size: 28),
+            const SizedBox(width: 10),
+            // TRANSLATED: 'Account Banned'
+            Text(l10n.accountBanned, style: const TextStyle(color: Colors.red)),
           ],
         ),
-        content: const Text(
-          'Your account has been permanently banned from CareConnect due to receiving multiple low ratings.\n\nYou can no longer log in or use the platform.',
-          style: TextStyle(fontSize: 15),
+        // TRANSLATED: Banned message
+        content: Text(
+          l10n.bannedMessage,
+          style: const TextStyle(fontSize: 15),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            // TRANSLATED: 'Close'
+            child: Text(l10n.close, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -153,6 +164,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // TRANSLATION INITIALIZATION FOR THE BUILD METHOD
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       body: Container(
         height: double.infinity,
@@ -189,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 15),
                 const Text(
-                  'CARECONNECT',
+                  'CARECONNECT', // Brand names stay the same
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
@@ -212,9 +226,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
-                            'Sign In',
-                            style: TextStyle(
+                          Text(
+                            l10n.signIn, // TRANSLATED: 'Sign In'
+                            style: const TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF6B3F69),
@@ -229,15 +243,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             keyboardType: TextInputType.emailAddress,
                             style: const TextStyle(fontSize: 18),
                             decoration: InputDecoration(
-                              labelText: 'Email',
+                              labelText: l10n.emailLabel, // TRANSLATED: 'Email'
                               prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF8D5F8C)),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
                               filled: true,
                               fillColor: Colors.grey[50],
                             ),
                             validator: (value) {
-                              if (value == null || value.isEmpty) return 'Please enter email';
-                              if (!value.contains('@')) return 'Enter a valid email';
+                              if (value == null || value.isEmpty) return l10n.pleaseEnterEmail; // TRANSLATED
+                              if (!value.contains('@')) return l10n.enterValidEmail; // TRANSLATED
                               return null;
                             },
                           ),
@@ -249,15 +263,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             obscureText: true,
                             style: const TextStyle(fontSize: 18),
                             decoration: InputDecoration(
-                              labelText: 'Password',
+                              labelText: l10n.passwordLabel, // TRANSLATED: 'Password'
                               prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF8D5F8C)),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
                               filled: true,
                               fillColor: Colors.grey[50],
                             ),
                             validator: (value) {
-                              if (value == null || value.isEmpty) return 'Please enter password';
-                              if (value.length < 6) return 'Minimum 6 characters required';
+                              if (value == null || value.isEmpty) return l10n.pleaseEnterPassword; // TRANSLATED
+                              if (value.length < 6) return l10n.min6Chars; // TRANSLATED
                               return null;
                             },
                           ),
@@ -268,9 +282,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             data: ThemeData(unselectedWidgetColor: const Color(0xFF8D5F8C)),
                             child: CheckboxListTile(
                               contentPadding: EdgeInsets.zero,
-                              title: const Text(
-                                "Remember Me",
-                                style: TextStyle(color: Color(0xFF6B3F69), fontSize: 16),
+                              title: Text(
+                                l10n.rememberMe, // TRANSLATED: 'Remember Me'
+                                style: const TextStyle(color: Color(0xFF6B3F69), fontSize: 16),
                               ),
                               value: _rememberMe,
                               onChanged: (newValue) {
@@ -304,9 +318,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Text(
-                                  'LOGIN', 
-                                  style: TextStyle(
+                              : Text(
+                                  l10n.loginBtn, // TRANSLATED: 'LOGIN'
+                                  style: const TextStyle(
                                     fontSize: 20, 
                                     fontWeight: FontWeight.bold, 
                                     color: Colors.white
@@ -327,9 +341,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       MaterialPageRoute(builder: (context) => const SignUpScreen()),
                     );
                   },
-                  child: const Text(
-                    "New to CareConnect? Sign Up",
-                    style: TextStyle(
+                  child: Text(
+                    l10n.newToCareConnect, // TRANSLATED: 'New to CareConnect? Sign Up'
+                    style: const TextStyle(
                       color: Colors.white, 
                       fontSize: 18, 
                       fontWeight: FontWeight.w600,

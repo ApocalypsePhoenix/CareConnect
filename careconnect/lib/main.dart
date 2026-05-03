@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'view/splash_screen.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'; // ADDED FOR LOCALIZATION
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED FOR LOCALIZATION
 
 void main() {
   runApp(const CareConnectApp());
@@ -13,6 +15,23 @@ class CareConnectApp extends StatelessWidget {
     return MaterialApp(
       title: 'CareConnect',
       debugShowCheckedModeBanner: false,
+      
+      // ==========================================
+      // ADDED: LOCALIZATION DELEGATES AND LOCALES
+      // ==========================================
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'), // English
+        Locale('ms'), // Bahasa Malaysia
+      ],
+      locale: const Locale('en'), // Forces English for now until we build the dropdown
+      // ==========================================
+
       theme: ThemeData(
         // Primary brand color: 6B3F69
         primaryColor: const Color(0xFF6B3F69),

@@ -1,0 +1,50 @@
+{
+  "hello": "Hello,",
+  "careRecipients": "Care Recipients",
+  "addNew": "Add New",
+  "activeServices": "Active Services",
+  "bookingHistory": "Booking History",
+  "viewAll": "View All",
+  "home": "Home",
+  "bookings": "Bookings",
+  "recipientsNav": "Recipients",
+  "settings": "Settings",
+  "needProfessionalCare": "Need professional care?",
+  "bookWorkerDesc": "Book a trained worker to assist your loved ones today.",
+  "bookWorkerBtn": "Book a Worker",
+  "noRecipientsAdded": "No recipients added yet",
+  "noActiveBookings": "No Active Bookings",
+  "ongoingServicesDesc": "Ongoing care services will appear here.",
+  "noPastHistory": "No Past History",
+  "historyDesc": "Tap \"View All\" above or this card to see your completed and cancelled bookings.",
+  "latestBooking": "Latest Booking",
+
+  "accountWarning": "Account Warning",
+  "warningMessage": "You currently have {warningCount} warning(s) due to low ratings (2 stars or below).\n\nPlease ensure you maintain high service standards. Reaching 3 warnings will result in a permanent ban.",
+  "@warningMessage": {
+    "placeholders": {
+      "warningCount": { "type": "int" }
+    }
+  },
+  "iUnderstand": "I Understand",
+  "welcomeBackName": "Welcome back, {name}!",
+  "@welcomeBackName": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "accountBanned": "Account Banned",
+  "bannedMessage": "Your account has been permanently banned from CareConnect due to receiving multiple low ratings.\n\nYou can no longer log in or use the platform.",
+  "close": "Close",
+  "loginFailed": "Login failed",
+  "signIn": "Sign In",
+  "emailLabel": "Email",
+  "pleaseEnterEmail": "Please enter email",
+  "enterValidEmail": "Enter a valid email",
+  "passwordLabel": "Password",
+  "pleaseEnterPassword": "Please enter password",
+  "min6Chars": "Minimum 6 characters required",
+  "rememberMe": "Remember Me",
+  "loginBtn": "LOGIN",
+  "newToCareConnect": "New to CareConnect? Sign Up"
+}
