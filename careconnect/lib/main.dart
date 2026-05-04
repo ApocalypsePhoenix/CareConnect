@@ -30,7 +30,6 @@ class CareConnectApp extends StatelessWidget {
         Locale('ms'), // Bahasa Malaysia
       ],
       locale: const Locale('en'), // Forces English for now until we build the dropdown
-      // ==========================================
 
       theme: ThemeData(
         // Primary brand color: 6B3F69

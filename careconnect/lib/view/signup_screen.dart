@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import '../services/mysql_api_service.dart';
 import 'login_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED: Localization Import
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -47,8 +48,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   String? _selectedGender;
-  String? _selectedRace; // ADDED
-  String? _selectedLanguage; // ADDED
+  String? _selectedRace; 
+  String? _selectedLanguage; 
 
   // --- Controllers for Section 2: Account Information ---
   final _emailController = TextEditingController();
@@ -103,8 +104,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  // Pick General Profile Image Logic
-  Future<void> _pickProfileImage() async {
+  Future<void> _pickProfileImage(AppLocalizations l10n) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -116,12 +116,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.failedToPick(e.toString()))));
     }
   }
 
-  // Pick Passport Style Image Logic
-  Future<void> _pickPassportImage() async {
+  Future<void> _pickPassportImage(AppLocalizations l10n) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -133,12 +133,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to pick passport image: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.failedToPick(e.toString()))));
     }
   }
 
-  // Pick Document Logic (Strictly PDFs)
-  Future<void> _pickDocumentFile(String docType) async {
+  Future<void> _pickDocumentFile(String docType, AppLocalizations l10n) async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -153,7 +153,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to pick document: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.failedToPick(e.toString()))));
     }
   }
 
@@ -175,7 +176,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  Future<void> _handleGoogleSignUp() async {
+  Future<void> _handleGoogleSignUp(AppLocalizations l10n) async {
     setState(() => _isLoading = true);
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn();
@@ -188,9 +189,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
             _nameController.text = googleUser.displayName ?? "";
           }
         });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Google account linked! Please set a password for CareConnect.')));
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.googleAccountLinked)));
       }
     } catch (error) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google Sign-In failed: $error')));
     } finally {
       setState(() => _isLoading = false);
@@ -224,16 +227,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  Future<void> _handleSignUp() async {
+  Future<void> _handleSignUp(AppLocalizations l10n) async {
     if (!_formKey.currentState!.validate()) return;
     
     if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.passwordsDoNotMatch)));
       return;
     }
 
     if (_selectedRole == 'Worker' && !_termsConfirmed) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please confirm information is true')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.pleaseConfirmTerms)));
       return;
     }
 
@@ -277,12 +280,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
       "age": _ageController.text,
       "phone": _phoneController.text,
       "gender": _selectedGender,
-      "race": _selectedRace ?? 'Malay', // ADDED
-      "spoken_language": _selectedLanguage ?? 'Malay', // ADDED
+      "race": _selectedRace ?? 'Malay', 
+      "spoken_language": _selectedLanguage ?? 'Malay', 
       "address": _addressController.text,
       "email": _emailController.text,
       "password": _passwordController.text,
-      "role": _selectedRole,
+      "role": _selectedRole, // Role stays 'Client' or 'Worker' for DB
       "profile_image": base64Profile, 
       "passport_image": base64Passport,
       "ic_image": base64Ic,
@@ -294,6 +297,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     final result = await MysqlApiService.registerClient(registrationData);
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (result['success']) {
@@ -306,6 +310,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!; // Initialized localization
+
     return Scaffold(
       body: Container(
         height: double.infinity,
@@ -321,7 +327,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
             child: Column(
               children: [
-                _buildHeader(),
+                _buildHeader(l10n),
                 const SizedBox(height: 25),
                 Card(
                   elevation: 15,
@@ -342,14 +348,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               controller: _pageController,
                               physics: const NeverScrollableScrollPhysics(),
                               children: [
-                                _buildSection1(),
-                                _buildSection2(),
-                                _selectedRole == 'Worker' ? _buildSection3Worker() : _buildSection3Client(),
+                                _buildSection1(l10n),
+                                _buildSection2(l10n),
+                                _selectedRole == 'Worker' ? _buildSection3Worker(l10n) : _buildSection3Client(l10n),
                               ],
                             ),
                           ),
                           const SizedBox(height: 10),
-                          _buildNavigationButtons(),
+                          _buildNavigationButtons(l10n),
                         ],
                       ),
                     ),
@@ -358,7 +364,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 20),
                 TextButton(
                   onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const LoginScreen())),
-                  child: const Text("Already have an account? Sign In", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                  child: Text(l10n.alreadyHaveAccount, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -368,11 +374,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(AppLocalizations l10n) {
     return Column(
       children: [
         GestureDetector(
-          onTap: _pickProfileImage,
+          onTap: () => _pickProfileImage(l10n),
           child: Container(
             width: 85, 
             height: 85,
@@ -387,13 +393,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        Text('${_selectedRole.toUpperCase()} REGISTRATION', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2, color: Colors.white)),
-        Text('Section ${_currentSection + 1} of $_totalSections', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+        Text(l10n.signUpHeader(_selectedRole.toUpperCase()), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2, color: Colors.white)),
+        Text(l10n.sectionXofY(_currentSection + 1, _totalSections), style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
       ],
     );
   }
 
   Widget _buildRoleToggle() {
+    // Note: Role stays exactly "Client" or "Worker" internally for DB stability
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Row(
@@ -421,65 +428,75 @@ class _SignUpScreenState extends State<SignUpScreen> {
           borderRadius: BorderRadius.circular(15),
           border: Border.all(color: isSelected ? const Color(0xFF6B3F69) : const Color(0xFFA376A2), width: 2),
         ),
-        child: Text(role, style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
+        child: Text(role.toUpperCase(), style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
       ),
     );
   }
 
-  Widget _buildSection1() {
+  Widget _buildSection1(AppLocalizations l10n) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Your Personal Information', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+          Text(l10n.personalInfo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
           const SizedBox(height: 15),
-          _buildTextField(controller: _nameController, label: 'Full Name', icon: Icons.person_outline),
+          _buildTextField(controller: _nameController, label: l10n.fullName, icon: Icons.person_outline, l10n: l10n),
           const SizedBox(height: 12),
-          _buildTextField(controller: _icController, label: 'I/C or Passport Number', icon: Icons.badge_outlined),
+          _buildTextField(controller: _icController, label: l10n.icPassport, icon: Icons.badge_outlined, l10n: l10n),
           const SizedBox(height: 12),
-          _buildTextField(controller: _ageController, label: 'Your Age', icon: Icons.cake_outlined, keyboardType: TextInputType.number),
+          _buildTextField(controller: _ageController, label: l10n.yourAge, icon: Icons.cake_outlined, keyboardType: TextInputType.number, l10n: l10n),
           const SizedBox(height: 12),
-          _buildTextField(controller: _phoneController, label: 'Phone Number', icon: Icons.phone_android_outlined, keyboardType: TextInputType.phone),
+          _buildTextField(controller: _phoneController, label: l10n.phoneNumber, icon: Icons.phone_android_outlined, keyboardType: TextInputType.phone, l10n: l10n),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             value: _selectedGender,
-            decoration: _inputDecoration('Gender', Icons.wc),
-            items: ['Male', 'Female'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+            decoration: _inputDecoration(l10n.gender, Icons.wc),
+            items: [
+              DropdownMenuItem(value: 'Male', child: Text(l10n.male)),
+              DropdownMenuItem(value: 'Female', child: Text(l10n.female)),
+            ],
             onChanged: (val) => setState(() => _selectedGender = val),
           ),
           const SizedBox(height: 12),
-          // ADDED: Race Dropdown
           DropdownButtonFormField<String>(
             value: _selectedRace,
-            decoration: _inputDecoration('Race', Icons.groups),
-            items: ['Malay', 'Chinese', 'Indian'].map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+            decoration: _inputDecoration(l10n.race, Icons.groups),
+            items: [
+              DropdownMenuItem(value: 'Malay', child: Text(l10n.malay)),
+              DropdownMenuItem(value: 'Chinese', child: Text(l10n.chinese)),
+              DropdownMenuItem(value: 'Indian', child: Text(l10n.indian)),
+            ],
             onChanged: (val) => setState(() => _selectedRace = val),
           ),
           const SizedBox(height: 12),
-          // ADDED: Language Dropdown
           DropdownButtonFormField<String>(
             value: _selectedLanguage,
-            decoration: _inputDecoration('Primary Spoken Language', Icons.language),
-            items: ['Malay', 'English', 'Mandarin', 'Tamil'].map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
+            decoration: _inputDecoration(l10n.primaryLanguage, Icons.language),
+            items: [
+              DropdownMenuItem(value: 'Malay', child: Text(l10n.malay)),
+              DropdownMenuItem(value: 'English', child: Text(l10n.english)),
+              DropdownMenuItem(value: 'Mandarin', child: Text(l10n.mandarin)),
+              DropdownMenuItem(value: 'Tamil', child: Text(l10n.tamil)),
+            ],
             onChanged: (val) => setState(() => _selectedLanguage = val),
           ),
           const SizedBox(height: 12),
-          _buildTextField(controller: _addressController, label: 'Current Address', icon: Icons.home_outlined, maxLines: 2),
+          _buildTextField(controller: _addressController, label: l10n.currentAddress, icon: Icons.home_outlined, maxLines: 2, l10n: l10n),
         ],
       ),
     );
   }
 
-  Widget _buildSection2() {
+  Widget _buildSection2(AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Account Setup', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+        Text(l10n.accountSetup, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
         const SizedBox(height: 20),
         OutlinedButton.icon(
-          onPressed: _isLoading ? null : _handleGoogleSignUp,
+          onPressed: _isLoading ? null : () => _handleGoogleSignUp(l10n),
           icon: const Icon(Icons.login, color: Color(0xFF6B3F69)),
-          label: const Text('Continue with Google', style: TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
+          label: Text(l10n.continueWithGoogle, style: const TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 12),
             side: const BorderSide(color: Color(0xFF6B3F69)),
@@ -487,84 +504,84 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        const Row(
+        Row(
           children: [
-            Expanded(child: Divider()),
-            Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("OR", style: TextStyle(color: Colors.grey, fontSize: 12))),
-            Expanded(child: Divider()),
+            const Expanded(child: Divider()),
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text(l10n.or, style: const TextStyle(color: Colors.grey, fontSize: 12))),
+            const Expanded(child: Divider()),
           ],
         ),
         const SizedBox(height: 20),
-        _buildTextField(controller: _emailController, label: 'Email Address', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+        _buildTextField(controller: _emailController, label: l10n.emailLabel, icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress, l10n: l10n),
         const SizedBox(height: 15),
-        _buildTextField(controller: _passwordController, label: 'Password', icon: Icons.lock_outline, isPassword: true),
+        _buildTextField(controller: _passwordController, label: l10n.password, icon: Icons.lock_outline, isPassword: true, l10n: l10n),
         const SizedBox(height: 15),
-        _buildTextField(controller: _confirmPasswordController, label: 'Confirm Password', icon: Icons.lock_reset_outlined, isPassword: true),
+        _buildTextField(controller: _confirmPasswordController, label: l10n.confirmPassword, icon: Icons.lock_reset_outlined, isPassword: true, l10n: l10n),
         const Spacer(),
-        const Text('By continuing, you agree to our terms and conditions.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(l10n.termsAgreement, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 10),
       ],
     );
   }
 
-  Widget _buildSection3Client() {
+  Widget _buildSection3Client(AppLocalizations l10n) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Care Recipient Info', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+          Text(l10n.careRecipientInfo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
           const SizedBox(height: 10),
-          _buildRecipientToggle(),
+          _buildRecipientToggle(l10n),
           const SizedBox(height: 15),
-          ..._recipients.asMap().entries.map((entry) => _buildRecipientForm(entry.key, entry.value)),
+          ..._recipients.asMap().entries.map((entry) => _buildRecipientForm(entry.key, entry.value, l10n)),
           if (!_isRegisteringForSelf)
             TextButton.icon(
               onPressed: _addRecipient,
               icon: const Icon(Icons.add_circle_outline, color: Color(0xFF6B3F69)),
-              label: const Text('Add Another Recipient', style: TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
+              label: Text(l10n.addAnotherRecipient, style: const TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildSection3Worker() {
+  Widget _buildSection3Worker(AppLocalizations l10n) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Professional Information', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+          Text(l10n.professionalInfo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
           const SizedBox(height: 10),
-          _buildServiceCheckboxes(),
+          _buildServiceCheckboxes(l10n),
           const SizedBox(height: 20),
-          const Text('Certificate Documents', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+          Text(l10n.certificateDocuments, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
           const SizedBox(height: 10),
           
-          _buildUploadItem('Passport Style Picture (Image)', Icons.portrait_outlined, _passportImage, _pickPassportImage),
-          _buildUploadItem('I/C or Passport (PDF)', Icons.picture_as_pdf_outlined, _icFile, () => _pickDocumentFile('IC')),
-          _buildUploadItem('Driving License (PDF)', Icons.picture_as_pdf_outlined, _licenseFile, () => _pickDocumentFile('License')),
-          _buildUploadItem('Certifications (PDF)', Icons.picture_as_pdf_outlined, _certFile, () => _pickDocumentFile('Cert')),
+          _buildUploadItem(l10n.passportPicture, Icons.portrait_outlined, _passportImage, () => _pickPassportImage(l10n), l10n),
+          _buildUploadItem(l10n.icPdf, Icons.picture_as_pdf_outlined, _icFile, () => _pickDocumentFile('IC', l10n), l10n),
+          _buildUploadItem(l10n.drivingLicensePdf, Icons.picture_as_pdf_outlined, _licenseFile, () => _pickDocumentFile('License', l10n), l10n),
+          _buildUploadItem(l10n.certificationsPdf, Icons.picture_as_pdf_outlined, _certFile, () => _pickDocumentFile('Cert', l10n), l10n),
           
           const SizedBox(height: 15),
-          _buildTermsCheckbox(),
+          _buildTermsCheckbox(l10n),
         ],
       ),
     );
   }
 
-  Widget _buildRecipientToggle() {
+  Widget _buildRecipientToggle(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(color: const Color(0xFFDDC3C3).withOpacity(0.3), borderRadius: BorderRadius.circular(15)),
       child: Row(
         children: [
-          _buildToggleButton('Registering Self', _isRegisteringForSelf, () {
+          _buildToggleButton(l10n.registeringSelf, _isRegisteringForSelf, () {
             setState(() {
               _isRegisteringForSelf = true;
               _recipients = [RecipientData()];
             });
           }),
-          _buildToggleButton('Registering Others', !_isRegisteringForSelf, () {
+          _buildToggleButton(l10n.registeringOthers, !_isRegisteringForSelf, () {
             setState(() => _isRegisteringForSelf = false);
           }),
         ],
@@ -585,7 +602,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _buildRecipientForm(int index, RecipientData data) {
+  Widget _buildRecipientForm(int index, RecipientData data, AppLocalizations l10n) {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(12),
@@ -593,30 +610,35 @@ class _SignUpScreenState extends State<SignUpScreen> {
       child: Column(
         children: [
           if (_isRegisteringForSelf) ...[
-            const Text("Your Health Information", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF6B3F69))),
+            Text(l10n.healthInformation, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF6B3F69))),
             const SizedBox(height: 8),
           ],
           if (!_isRegisteringForSelf) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Recipient #${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF6B3F69))),
+                Text(l10n.recipientNumber(index + 1), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF6B3F69))),
                 if (_recipients.length > 1) IconButton(onPressed: () => _removeRecipient(index), icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent, size: 20)),
               ],
             ),
-            _buildTextField(controller: data.nameController, label: "Full Name", icon: Icons.person_search_outlined),
+            _buildTextField(controller: data.nameController, label: l10n.fullName, icon: Icons.person_search_outlined, l10n: l10n),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(flex: 3, child: _buildTextField(controller: data.ageController, label: "Age", icon: Icons.cake_outlined, keyboardType: TextInputType.number)),
+                Expanded(flex: 3, child: _buildTextField(controller: data.ageController, label: l10n.age, icon: Icons.cake_outlined, keyboardType: TextInputType.number, l10n: l10n)),
                 const SizedBox(width: 8),
                 Expanded(
                   flex: 4,
                   child: DropdownButtonFormField<String>(
                     isExpanded: true,
                     value: data.selectedRelationship,
-                    decoration: _inputDecoration('Relationship', Icons.people_outline),
-                    items: ['Parent', 'Grandparent', 'Spouse', 'Other'].map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 12)))).toList(),
+                    decoration: _inputDecoration(l10n.relationship, Icons.people_outline),
+                    items: [
+                      DropdownMenuItem(value: 'Parent', child: Text(l10n.parent, style: const TextStyle(fontSize: 12))),
+                      DropdownMenuItem(value: 'Grandparent', child: Text(l10n.grandparent, style: const TextStyle(fontSize: 12))),
+                      DropdownMenuItem(value: 'Spouse', child: Text(l10n.spouse, style: const TextStyle(fontSize: 12))),
+                      DropdownMenuItem(value: 'Other', child: Text(l10n.other, style: const TextStyle(fontSize: 12))),
+                    ],
                     onChanged: (val) => setState(() => data.selectedRelationship = val),
                   ),
                 ),
@@ -627,25 +649,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
           DropdownButtonFormField<String>(
             isExpanded: true,
             value: data.selectedCondition,
-            decoration: _inputDecoration('Medical Condition', Icons.medical_information_outlined),
-            items: _medicalConditions.map((condition) => DropdownMenuItem(value: condition, child: Text(condition, style: const TextStyle(fontSize: 13)))).toList(),
+            decoration: _inputDecoration(l10n.medicalCondition, Icons.medical_information_outlined),
+            items: [
+              DropdownMenuItem(value: 'High Blood Pressure', child: Text(l10n.highBloodPressure, style: const TextStyle(fontSize: 13))),
+              DropdownMenuItem(value: 'Heart Disease & Stroke', child: Text(l10n.heartDisease, style: const TextStyle(fontSize: 13))),
+              DropdownMenuItem(value: 'Diabetes', child: Text(l10n.diabetes, style: const TextStyle(fontSize: 13))),
+              DropdownMenuItem(value: 'Others', child: Text(l10n.others, style: const TextStyle(fontSize: 13))),
+            ],
             onChanged: (val) => setState(() => data.selectedCondition = val),
-            validator: (v) => v == null ? 'Please select a condition' : null,
+            validator: (v) => v == null ? l10n.pleaseSelectCondition : null,
           ),
           const SizedBox(height: 12),
-          _buildTextField(controller: data.needsController, label: "Special Needs", icon: Icons.note_alt_outlined, maxLines: 2),
+          _buildTextField(controller: data.needsController, label: l10n.specialNeeds, icon: Icons.note_alt_outlined, maxLines: 2, l10n: l10n),
         ],
       ),
     );
   }
 
-  Widget _buildServiceCheckboxes() {
+  // Helper method to safely translate Map Keys for UI without changing DB values
+  String _getServiceTranslation(String key, AppLocalizations l10n) {
+    if (key == 'Mobility Service') return l10n.mobilityService;
+    if (key == 'Physiotherapy/Rehabilitation') return l10n.physiotherapy;
+    return l10n.nursingCare;
+  }
+
+  Widget _buildServiceCheckboxes(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(color: const Color(0xFFDDC3C3).withOpacity(0.2), borderRadius: BorderRadius.circular(15)),
       child: Column(
         children: _profInfo.keys.map((key) => CheckboxListTile(
-              title: Text(key, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+              title: Text(_getServiceTranslation(key, l10n), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
               value: _profInfo[key],
               activeColor: const Color(0xFF6B3F69),
               dense: true,
@@ -656,16 +690,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _buildTermsCheckbox() {
+  Widget _buildTermsCheckbox(AppLocalizations l10n) {
     return Row(
       children: [
         Checkbox(value: _termsConfirmed, activeColor: const Color(0xFF6B3F69), onChanged: (v) => setState(() => _termsConfirmed = v!)),
-        const Expanded(child: Text('I confirm all information and documents are true.', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B3F69)))),
+        Expanded(child: Text(l10n.confirmInfoTrue, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B3F69)))),
       ],
     );
   }
 
-  Widget _buildNavigationButtons() {
+  Widget _buildNavigationButtons(AppLocalizations l10n) {
     if (_isLoading) return const Center(child: CircularProgressIndicator(color: Color(0xFF6B3F69)));
     return Row(
       children: [
@@ -673,24 +707,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
           Expanded(
             child: OutlinedButton(
               onPressed: _previousSection,
-              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 15), side: const BorderSide(color: Color(0xFF6B3F69)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-              child: const Text('BACK', style: TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 15), side: const BorderSide(color: const Color(0xFF6B3F69)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+              child: Text(l10n.back, style: const TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
             ),
           ),
         if (_currentSection > 0) const SizedBox(width: 10),
         Expanded(
           flex: 2,
           child: ElevatedButton(
-            onPressed: (_currentSection == _totalSections - 1) ? _handleSignUp : _nextSection,
+            onPressed: (_currentSection == _totalSections - 1) ? () => _handleSignUp(l10n) : _nextSection,
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6B3F69), padding: const EdgeInsets.symmetric(vertical: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-            child: Text((_currentSection == _totalSections - 1) ? 'SIGN UP' : 'NEXT', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+            child: Text((_currentSection == _totalSections - 1) ? l10n.signUp : l10n.next, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTextField({required TextEditingController controller, required String label, required IconData icon, bool isPassword = false, int maxLines = 1, TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField({required TextEditingController controller, required String label, required IconData icon, bool isPassword = false, int maxLines = 1, TextInputType keyboardType = TextInputType.text, required AppLocalizations l10n}) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword,
@@ -698,7 +732,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       maxLines: maxLines,
       style: const TextStyle(fontSize: 14),
       decoration: _inputDecoration(label, icon),
-      validator: (v) => v!.isEmpty ? 'Required' : null,
+      validator: (v) => v!.isEmpty ? l10n.requiredText : null,
     );
   }
 
@@ -714,7 +748,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _buildUploadItem(String label, IconData icon, File? selectedFile, VoidCallback onTap) {
+  Widget _buildUploadItem(String label, IconData icon, File? selectedFile, VoidCallback onTap, AppLocalizations l10n) {
     bool isUploaded = selectedFile != null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -734,7 +768,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  isUploaded ? '$label (Uploaded)' : label, 
+                  isUploaded ? '$label ${l10n.uploaded}' : label, 
                   style: TextStyle(
                     fontSize: 13, 
                     fontWeight: FontWeight.bold,
