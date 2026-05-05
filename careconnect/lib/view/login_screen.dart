@@ -48,6 +48,11 @@ class _LoginScreenState extends State<LoginScreen> {
         // CHECK FOR WARNING BEFORE DASHBOARD
         // ==========================================
         if (user['account_status'] == 'Warning') {
+          
+          // FIX: Safely convert the database string (like "1") into a math integer (1)
+          // This prevents the translation dictionary from crashing the popup!
+          int warnings = int.tryParse(user['warning_count']?.toString() ?? '0') ?? 0;
+          
           await showDialog(
             context: context,
             barrierDismissible: false,
@@ -63,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               // TRANSLATED: Dynamic warning message
               content: Text(
-                l10n.warningMessage(user['warning_count'] ?? 0),
+                l10n.warningMessage(warnings), // Uses the safe integer here!
                 style: const TextStyle(fontSize: 15),
               ),
               actions: [
@@ -125,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // --- BANNED DIALOG UI ---
-  void _showBannedDialog(AppLocalizations l10n) { // Added l10n parameter
+  void _showBannedDialog(AppLocalizations l10n) { 
     showDialog(
       context: context,
       barrierDismissible: false,

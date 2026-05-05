@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/mysql_api_service.dart';
 import 'login_screen.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED
+import '../main.dart'; // ADDED: Connects to the Global Magic Switch
 
 class SettingClientScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -117,7 +119,7 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
     }
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage(AppLocalizations l10n) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -129,15 +131,16 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
         });
       }
     } catch (e) {
+      if(!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick image: $e')),
+        SnackBar(content: Text(l10n.failedToPick(e.toString()))),
       );
     }
   }
 
-  Future<void> _saveProfile() async {
+  Future<void> _saveProfile(AppLocalizations l10n) async {
     if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name cannot be empty')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.nameCannotBeEmpty)));
       return;
     }
 
@@ -180,7 +183,7 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
     if (mounted) {
       if (result['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green));
+            SnackBar(content: Text(l10n.profileUpdated), backgroundColor: Colors.green));
         // Pass the updated user object back to the dashboard
         Navigator.pop(context, result['user']); 
       } else {
@@ -191,7 +194,7 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
   }
 
   // Method to show Change Password Dialog
-  void _showChangePasswordDialog() {
+  void _showChangePasswordDialog(AppLocalizations l10n) {
     final oldPasswordController = TextEditingController();
     final newPasswordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
@@ -205,30 +208,30 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-              title: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+              title: Text(l10n.changePassword, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildTextField(label: 'Current Password', controller: oldPasswordController, icon: Icons.lock_outline, isPassword: true),
+                  _buildTextField(label: l10n.currentPassword, controller: oldPasswordController, icon: Icons.lock_outline, isPassword: true),
                   const SizedBox(height: 10),
-                  _buildTextField(label: 'New Password', controller: newPasswordController, icon: Icons.lock_reset, isPassword: true),
+                  _buildTextField(label: l10n.newPassword, controller: newPasswordController, icon: Icons.lock_reset, isPassword: true),
                   const SizedBox(height: 10),
-                  _buildTextField(label: 'Confirm New Password', controller: confirmPasswordController, icon: Icons.check_circle_outline, isPassword: true),
+                  _buildTextField(label: l10n.confirmNewPassword, controller: confirmPasswordController, icon: Icons.check_circle_outline, isPassword: true),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                  child: Text(l10n.cancel, style: const TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   onPressed: isUpdatingPassword ? null : () async {
                     if (oldPasswordController.text.isEmpty || newPasswordController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields.')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.fillAllFields)));
                       return;
                     }
                     if (newPasswordController.text != confirmPasswordController.text) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('New passwords do not match.')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.passwordsDoNotMatch)));
                       return;
                     }
 
@@ -246,7 +249,7 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
                     if (mounted) {
                       if (result['success']) {
                         Navigator.pop(context); // Close dialog
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password updated successfully!'), backgroundColor: Colors.green));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.passwordUpdated), backgroundColor: Colors.green));
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message']), backgroundColor: Colors.red));
                       }
@@ -258,7 +261,7 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
                   ),
                   child: isUpdatingPassword
                       ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Update', style: TextStyle(color: Colors.white)),
+                      : Text(l10n.update, style: const TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -269,18 +272,18 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
   }
 
   // Method to display the logout confirmation popup
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, AppLocalizations l10n) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-          title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: const Text('Are you sure you want to logout?'),
+          title: Text(l10n.logout, style: const TextStyle(fontWeight: FontWeight.bold)),
+          content: Text(l10n.logoutConfirmation),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('No', style: TextStyle(color: Colors.grey)),
+              child: Text(l10n.no, style: const TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -292,7 +295,7 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
                 );
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
-              child: const Text('Yes'),
+              child: Text(l10n.yes),
             ),
           ],
         );
@@ -302,10 +305,12 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!; // TRANSLATION ENGINE LOADED
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Edit Profile', style: TextStyle(color: Colors.white)),
+        title: Text(l10n.editProfile, style: const TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF6B3F69),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -332,7 +337,7 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
                         : null,
                   ),
                   GestureDetector(
-                    onTap: _pickImage,
+                    onTap: () => _pickImage(l10n),
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: const BoxDecoration(color: Color(0xFF6B3F69), shape: BoxShape.circle),
@@ -344,21 +349,53 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
             ),
             const SizedBox(height: 10),
             Center(child: Text(widget.user['email'], style: const TextStyle(color: Colors.grey, fontSize: 14))),
+            const SizedBox(height: 25),
+
+            // ==============================================================
+            // APP LANGUAGE SWITCHER
+            // ==============================================================
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              child: ListTile(
+                leading: const Icon(Icons.language, color: Color(0xFF6B3F69)),
+                title: Text(l10n.appLanguage, style: const TextStyle(fontWeight: FontWeight.bold)),
+                trailing: ValueListenableBuilder<Locale>(
+                  valueListenable: appLocale,
+                  builder: (context, currentLocale, child) {
+                    return DropdownButton<String>(
+                      value: currentLocale.languageCode,
+                      underline: const SizedBox(),
+                      items: [
+                        DropdownMenuItem(value: 'en', child: Text(l10n.languageEnglish)),
+                        DropdownMenuItem(value: 'ms', child: Text(l10n.languageMalay)),
+                      ],
+                      onChanged: (String? newLanguageCode) {
+                        if (newLanguageCode != null) {
+                          appLocale.value = Locale(newLanguageCode);
+                        }
+                      },
+                    );
+                  }
+                ),
+              ),
+            ),
             const SizedBox(height: 30),
+            // ==============================================================
 
             // Form Fields: Personal Info
-            const Text('Personal Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+            Text(l10n.personalInfo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
             const SizedBox(height: 15),
-            _buildTextField(label: 'Full Name', controller: _nameController, icon: Icons.person_outline),
+            _buildTextField(label: l10n.fullName, controller: _nameController, icon: Icons.person_outline),
             const SizedBox(height: 16),
-            _buildTextField(label: 'I/C Number', controller: _icController, icon: Icons.badge_outlined),
+            _buildTextField(label: l10n.icNumber, controller: _icController, icon: Icons.badge_outlined),
             const SizedBox(height: 16),
             
             Row(
               children: [
                 Expanded(
                   flex: 2,
-                  child: _buildTextField(label: 'Age', controller: _ageController, icon: Icons.cake_outlined, keyboardType: TextInputType.number),
+                  child: _buildTextField(label: l10n.age, controller: _ageController, icon: Icons.cake_outlined, keyboardType: TextInputType.number),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -367,7 +404,7 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
                     value: _selectedGender,
                     icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
                     decoration: InputDecoration(
-                      labelText: 'Gender',
+                      labelText: l10n.gender,
                       prefixIcon: const Icon(Icons.wc, color: Color(0xFF8D5F8C)),
                       filled: true,
                       fillColor: Colors.white,
@@ -375,7 +412,11 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.grey.shade300)),
                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Color(0xFF6B3F69), width: 1.5)),
                     ),
-                    items: ['Male', 'Female'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                    // VISUALLY translates but keeps the actual value safe for the DB!
+                    items: ['Male', 'Female'].map((g) {
+                      String display = g == 'Male' ? l10n.male : l10n.female;
+                      return DropdownMenuItem(value: g, child: Text(display));
+                    }).toList(),
                     onChanged: (val) => setState(() => _selectedGender = val),
                   ),
                 ),
@@ -383,9 +424,9 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
             ),
             const SizedBox(height: 16),
             
-            _buildTextField(label: 'Phone Number', controller: _phoneController, icon: Icons.phone_android_outlined, keyboardType: TextInputType.phone),
+            _buildTextField(label: l10n.phoneNumber, controller: _phoneController, icon: Icons.phone_android_outlined, keyboardType: TextInputType.phone),
             const SizedBox(height: 16),
-            _buildTextField(label: 'Address', controller: _addressController, icon: Icons.home_outlined, maxLines: 2),
+            _buildTextField(label: l10n.address, controller: _addressController, icon: Icons.home_outlined, maxLines: 2),
             const SizedBox(height: 30),
 
             // Form Fields: Self Health Info (Only visible if they have a 'Self' profile)
@@ -394,14 +435,14 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
             else if (_selfRecipientId != null) ...[
               const Divider(thickness: 1.5),
               const SizedBox(height: 10),
-              const Text('Your Health Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+              Text(l10n.healthInformation, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
               const SizedBox(height: 15),
               
               DropdownButtonFormField<String>(
                 value: _selectedMedicalCondition,
                 icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
                 decoration: InputDecoration(
-                  labelText: 'Medical Condition',
+                  labelText: l10n.medicalCondition,
                   prefixIcon: const Icon(Icons.medical_information_outlined, color: Color(0xFF8D5F8C)),
                   filled: true,
                   fillColor: Colors.white,
@@ -409,11 +450,20 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.grey.shade300)),
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Color(0xFF6B3F69), width: 1.5)),
                 ),
-                items: _medicalOptions.map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 14)))).toList(),
+                // VISUALLY translates but keeps the actual value safe for the DB!
+                items: _medicalOptions.map((m) {
+                  String display = m;
+                  if (m == 'High blood pressure') display = l10n.highBloodPressure;
+                  else if (m == 'Heart diseases and stroke') display = l10n.heartDisease;
+                  else if (m == 'Diabetes') display = l10n.diabetes;
+                  else if (m == 'Others') display = l10n.others;
+                  
+                  return DropdownMenuItem(value: m, child: Text(display, style: const TextStyle(fontSize: 14)));
+                }).toList(),
                 onChanged: (val) => setState(() => _selectedMedicalCondition = val),
               ),
               const SizedBox(height: 16),
-              _buildTextField(label: 'Special Needs', controller: _specialNeedsController, icon: Icons.note_alt_outlined, maxLines: 2),
+              _buildTextField(label: l10n.specialNeeds, controller: _specialNeedsController, icon: Icons.note_alt_outlined, maxLines: 2),
               const SizedBox(height: 30),
             ],
 
@@ -422,14 +472,14 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _isSaving ? null : _saveProfile,
+                onPressed: _isSaving ? null : () => _saveProfile(l10n),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6B3F69),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 ),
                 child: _isSaving
                     ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Save Changes', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    : Text(l10n.saveChanges, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(height: 30),
@@ -439,9 +489,9 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _showChangePasswordDialog,
+                    onPressed: () => _showChangePasswordDialog(l10n),
                     icon: const Icon(Icons.lock_reset, color: Color(0xFF6B3F69)),
-                    label: const Text('Password', style: TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
+                    label: Text(l10n.password, style: const TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: const BorderSide(color: Color(0xFF6B3F69)),
@@ -452,9 +502,9 @@ class _SettingClientScreenState extends State<SettingClientScreen> {
                 const SizedBox(width: 15),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _showLogoutDialog(context),
+                    onPressed: () => _showLogoutDialog(context, l10n),
                     icon: const Icon(Icons.logout, color: Colors.red),
-                    label: const Text('Logout', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    label: Text(l10n.logout, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: const BorderSide(color: Colors.red),

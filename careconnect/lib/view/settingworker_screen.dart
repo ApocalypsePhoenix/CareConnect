@@ -6,6 +6,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/mysql_api_service.dart';
 import 'login_screen.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED
+import '../main.dart'; // ADDED: Connects to the Global Magic Switch
 
 class SettingWorkerScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -40,27 +42,24 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
   bool _isSaving = false;
 
   // Helper to view existing documents
-  Future<void> _viewDocument(String? url, bool isImage) async {
+  Future<void> _viewDocument(String? url, bool isImage, AppLocalizations l10n) async {
     if (url == null || url.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No document currently uploaded.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.noDocumentUploaded)));
       return;
     }
     
     final fullUrl = 'https://arcadiusengine.xyz/careconnect/$url';
     
     if (isImage) {
-      // Show images directly in the app
       showDialog(
         context: context, 
         builder: (c) => AlertDialog(
           contentPadding: const EdgeInsets.all(10),
           content: Image.network(fullUrl),
-          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Close', style: TextStyle(color: Color(0xFF6B3F69))))],
+          actions: [TextButton(onPressed: () => Navigator.pop(c), child: Text(l10n.close, style: const TextStyle(color: Color(0xFF6B3F69))))],
         )
       );
     } else {
-      // FIX: Wrap the PDF URL in Google Docs Viewer so mobile browsers render it beautifully
-      // instead of printing out raw PDF binary text!
       final encodedUrl = Uri.encodeComponent(fullUrl);
       final googleViewerUrl = 'https://docs.google.com/viewer?url=$encodedUrl';
       final uri = Uri.parse(googleViewerUrl);
@@ -129,25 +128,25 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
     }
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage(AppLocalizations l10n) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
       if (pickedFile != null) setState(() => _newProfileImage = File(pickedFile.path));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.failedToPick(e.toString()))));
     }
   }
 
-  Future<void> _pickPassportImage() async {
+  Future<void> _pickPassportImage(AppLocalizations l10n) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
       if (pickedFile != null) setState(() => _passportImage = File(pickedFile.path));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to pick passport image: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.failedToPick(e.toString()))));
     }
   }
 
-  Future<void> _pickDocumentFile(String docType) async {
+  Future<void> _pickDocumentFile(String docType, AppLocalizations l10n) async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
       if (result != null && result.files.single.path != null) {
@@ -158,13 +157,13 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to pick document: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.failedToPick(e.toString()))));
     }
   }
 
-  Future<void> _saveProfile() async {
+  Future<void> _saveProfile(AppLocalizations l10n) async {
     if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name cannot be empty')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.nameCannotBeEmpty)));
       return;
     }
 
@@ -217,8 +216,8 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text((uploadedDocs || servicesChanged)
-              ? 'Profile updated! Changes sent for Admin review.' 
-              : 'Profile updated successfully!'), 
+              ? l10n.profileUpdatedAdminReview 
+              : l10n.profileUpdated), 
             backgroundColor: Colors.green
           )
         );
@@ -229,7 +228,7 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
     }
   }
 
-  void _showChangePasswordDialog() {
+  void _showChangePasswordDialog(AppLocalizations l10n) {
     final oldPasswordController = TextEditingController();
     final newPasswordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
@@ -243,30 +242,30 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-              title: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+              title: Text(l10n.changePassword, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildTextField(label: 'Current Password', controller: oldPasswordController, icon: Icons.lock_outline, isPassword: true),
+                  _buildTextField(label: l10n.currentPassword, controller: oldPasswordController, icon: Icons.lock_outline, isPassword: true, l10n: l10n),
                   const SizedBox(height: 10),
-                  _buildTextField(label: 'New Password', controller: newPasswordController, icon: Icons.lock_reset, isPassword: true),
+                  _buildTextField(label: l10n.newPassword, controller: newPasswordController, icon: Icons.lock_reset, isPassword: true, l10n: l10n),
                   const SizedBox(height: 10),
-                  _buildTextField(label: 'Confirm New Password', controller: confirmPasswordController, icon: Icons.check_circle_outline, isPassword: true),
+                  _buildTextField(label: l10n.confirmNewPassword, controller: confirmPasswordController, icon: Icons.check_circle_outline, isPassword: true, l10n: l10n),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                  child: Text(l10n.cancel, style: const TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   onPressed: isUpdatingPassword ? null : () async {
                     if (oldPasswordController.text.isEmpty || newPasswordController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields.')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.fillAllFields)));
                       return;
                     }
                     if (newPasswordController.text != confirmPasswordController.text) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('New passwords do not match.')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.passwordsDoNotMatch)));
                       return;
                     }
 
@@ -283,14 +282,14 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
                     if (mounted) {
                       if (result['success']) {
                         Navigator.pop(context); 
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password updated successfully!'), backgroundColor: Colors.green));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.passwordUpdated), backgroundColor: Colors.green));
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message']), backgroundColor: Colors.red));
                       }
                     }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6B3F69), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                  child: isUpdatingPassword ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Update', style: TextStyle(color: Colors.white)),
+                  child: isUpdatingPassword ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text(l10n.update, style: const TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -300,18 +299,18 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, AppLocalizations l10n) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-          title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: const Text('Are you sure you want to logout?'),
+          title: Text(l10n.logout, style: const TextStyle(fontWeight: FontWeight.bold)),
+          content: Text(l10n.logoutConfirmation),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('No', style: TextStyle(color: Colors.grey)),
+              child: Text(l10n.no, style: const TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -319,7 +318,7 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
                 Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginScreen()), (Route<dynamic> route) => false);
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
-              child: const Text('Yes'),
+              child: Text(l10n.yes),
             ),
           ],
         );
@@ -327,12 +326,21 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
     );
   }
 
+  // Helper method to safely translate Map Keys for UI without changing DB values
+  String _getServiceTranslation(String key, AppLocalizations l10n) {
+    if (key == 'Mobility Service') return l10n.mobilityService;
+    if (key == 'Physiotherapy/Rehabilitation') return l10n.physiotherapy;
+    return l10n.nursingCare;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!; // TRANSLATION ENGINE LOADED
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Worker Settings', style: TextStyle(color: Colors.white)),
+        title: Text(l10n.workerSettings, style: const TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF6B3F69),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -358,7 +366,7 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
                         : null,
                   ),
                   GestureDetector(
-                    onTap: _pickImage,
+                    onTap: () => _pickImage(l10n),
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: const BoxDecoration(color: Color(0xFF6B3F69), shape: BoxShape.circle),
@@ -372,44 +380,97 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
             Center(child: Text(widget.user['email'], style: const TextStyle(color: Colors.grey, fontSize: 14))),
             const SizedBox(height: 30),
 
-            const Text('Personal Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+            // ==============================================================
+            // APP LANGUAGE SWITCHER
+            // ==============================================================
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              child: ListTile(
+                leading: const Icon(Icons.language, color: Color(0xFF6B3F69)),
+                title: Text(l10n.appLanguage, style: const TextStyle(fontWeight: FontWeight.bold)),
+                trailing: ValueListenableBuilder<Locale>(
+                  valueListenable: appLocale,
+                  builder: (context, currentLocale, child) {
+                    return DropdownButton<String>(
+                      value: currentLocale.languageCode,
+                      underline: const SizedBox(),
+                      items: [
+                        DropdownMenuItem(value: 'en', child: Text(l10n.languageEnglish)),
+                        DropdownMenuItem(value: 'ms', child: Text(l10n.languageMalay)),
+                      ],
+                      onChanged: (String? newLanguageCode) {
+                        if (newLanguageCode != null) {
+                          appLocale.value = Locale(newLanguageCode);
+                        }
+                      },
+                    );
+                  }
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            // ==============================================================
+
+            Text(l10n.personalInfo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
             const SizedBox(height: 15),
-            _buildTextField(label: 'Full Name', controller: _nameController, icon: Icons.person_outline),
+            _buildTextField(label: l10n.fullName, controller: _nameController, icon: Icons.person_outline, l10n: l10n),
             const SizedBox(height: 16),
-            _buildTextField(label: 'I/C Number', controller: _icController, icon: Icons.badge_outlined),
+            _buildTextField(label: l10n.icNumber, controller: _icController, icon: Icons.badge_outlined, l10n: l10n),
             const SizedBox(height: 16),
             
             Row(
               children: [
-                Expanded(flex: 2, child: _buildTextField(label: 'Age', controller: _ageController, icon: Icons.cake_outlined, keyboardType: TextInputType.number)),
+                Expanded(flex: 2, child: _buildTextField(label: l10n.age, controller: _ageController, icon: Icons.cake_outlined, keyboardType: TextInputType.number, l10n: l10n)),
                 const SizedBox(width: 10),
-                Expanded(flex: 3, child: _buildDropdown(label: 'Gender', value: _selectedGender, icon: Icons.wc, items: ['Male', 'Female'], onChanged: (val) => setState(() => _selectedGender = val))),
+                Expanded(flex: 3, child: _buildDropdown(
+                  label: l10n.gender, 
+                  value: _selectedGender, 
+                  icon: Icons.wc, 
+                  items: ['Male', 'Female'], 
+                  onChanged: (val) => setState(() => _selectedGender = val),
+                  l10n: l10n,
+                )),
               ],
             ),
             const SizedBox(height: 16),
 
             Row(
               children: [
-                Expanded(child: _buildDropdown(label: 'Race', value: _selectedRace, icon: Icons.groups, items: ['Malay', 'Chinese', 'Indian'], onChanged: (val) => setState(() => _selectedRace = val))),
+                Expanded(child: _buildDropdown(
+                  label: l10n.race, 
+                  value: _selectedRace, 
+                  icon: Icons.groups, 
+                  items: ['Malay', 'Chinese', 'Indian'], 
+                  onChanged: (val) => setState(() => _selectedRace = val),
+                  l10n: l10n,
+                )),
                 const SizedBox(width: 10),
-                Expanded(child: _buildDropdown(label: 'Language', value: _selectedLanguage, icon: Icons.language, items: ['Malay', 'English', 'Mandarin', 'Tamil'], onChanged: (val) => setState(() => _selectedLanguage = val))),
+                Expanded(child: _buildDropdown(
+                  label: l10n.language, 
+                  value: _selectedLanguage, 
+                  icon: Icons.language, 
+                  items: ['Malay', 'English', 'Mandarin', 'Tamil'], 
+                  onChanged: (val) => setState(() => _selectedLanguage = val),
+                  l10n: l10n,
+                )),
               ],
             ),
             const SizedBox(height: 16),
             
-            _buildTextField(label: 'Phone Number', controller: _phoneController, icon: Icons.phone_android_outlined, keyboardType: TextInputType.phone),
+            _buildTextField(label: l10n.phoneNumber, controller: _phoneController, icon: Icons.phone_android_outlined, keyboardType: TextInputType.phone, l10n: l10n),
             const SizedBox(height: 16),
-            _buildTextField(label: 'Address', controller: _addressController, icon: Icons.home_outlined, maxLines: 2),
+            _buildTextField(label: l10n.address, controller: _addressController, icon: Icons.home_outlined, maxLines: 2, l10n: l10n),
             const SizedBox(height: 30),
 
-            const Text('Professional Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+            Text(l10n.professionalInfo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
             const SizedBox(height: 15),
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(color: const Color(0xFFDDC3C3).withOpacity(0.2), borderRadius: BorderRadius.circular(15)),
               child: Column(
                 children: _profInfo.keys.map((key) => CheckboxListTile(
-                      title: Text(key, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                      title: Text(_getServiceTranslation(key, l10n), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                       value: _profInfo[key],
                       activeColor: const Color(0xFF6B3F69),
                       dense: true,
@@ -421,15 +482,15 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
             const SizedBox(height: 30),
 
             // DOCUMENT RE-UPLOAD SECTION
-            const Text('Update Certificates / Documents', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+            Text(l10n.updateCertificates, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
             const SizedBox(height: 5),
-            const Text('Changing services or uploading new documents will send your profile for Admin review. You can continue working in the meantime.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            Text(l10n.adminReviewNotice, style: const TextStyle(fontSize: 12, color: Colors.grey)),
             const SizedBox(height: 15),
             
-            _buildUploadItem('Passport Style Picture', Icons.portrait_outlined, _passportImage, widget.user['profile_pic_url'], true, _pickPassportImage),
-            _buildUploadItem('I/C or Passport (PDF)', Icons.picture_as_pdf_outlined, _icFile, widget.user['ic_doc_url'], false, () => _pickDocumentFile('IC')),
-            _buildUploadItem('Driving License (PDF)', Icons.picture_as_pdf_outlined, _licenseFile, widget.user['license_doc_url'], false, () => _pickDocumentFile('License')),
-            _buildUploadItem('Certifications (PDF)', Icons.picture_as_pdf_outlined, _certFile, widget.user['cert_doc_url'], false, () => _pickDocumentFile('Cert')),
+            _buildUploadItem(l10n.passportPicture, Icons.portrait_outlined, _passportImage, widget.user['profile_pic_url'], true, () => _pickPassportImage(l10n), l10n),
+            _buildUploadItem(l10n.icPdf, Icons.picture_as_pdf_outlined, _icFile, widget.user['ic_doc_url'], false, () => _pickDocumentFile('IC', l10n), l10n),
+            _buildUploadItem(l10n.drivingLicensePdf, Icons.picture_as_pdf_outlined, _licenseFile, widget.user['license_doc_url'], false, () => _pickDocumentFile('License', l10n), l10n),
+            _buildUploadItem(l10n.certificationsPdf, Icons.picture_as_pdf_outlined, _certFile, widget.user['cert_doc_url'], false, () => _pickDocumentFile('Cert', l10n), l10n),
             
             const SizedBox(height: 30),
 
@@ -437,11 +498,11 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _isSaving ? null : _saveProfile,
+                onPressed: _isSaving ? null : () => _saveProfile(l10n),
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6B3F69), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
                 child: _isSaving
                     ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Save Changes', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    : Text(l10n.saveChanges, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(height: 30),
@@ -450,18 +511,18 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _showChangePasswordDialog,
+                    onPressed: () => _showChangePasswordDialog(l10n),
                     icon: const Icon(Icons.lock_reset, color: Color(0xFF6B3F69)),
-                    label: const Text('Password', style: TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
+                    label: Text(l10n.password, style: const TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
                     style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), side: const BorderSide(color: Color(0xFF6B3F69)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
                   ),
                 ),
                 const SizedBox(width: 15),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _showLogoutDialog(context),
+                    onPressed: () => _showLogoutDialog(context, l10n),
                     icon: const Icon(Icons.logout, color: Colors.red),
-                    label: const Text('Logout', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    label: Text(l10n.logout, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                     style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), side: const BorderSide(color: Colors.red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
                   ),
                 ),
@@ -474,7 +535,7 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
     );
   }
 
-  Widget _buildTextField({required String label, required TextEditingController controller, required IconData icon, TextInputType keyboardType = TextInputType.text, int maxLines = 1, bool isPassword = false}) {
+  Widget _buildTextField({required String label, required TextEditingController controller, required IconData icon, TextInputType keyboardType = TextInputType.text, int maxLines = 1, bool isPassword = false, required AppLocalizations l10n}) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
@@ -492,7 +553,7 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
     );
   }
 
-  Widget _buildDropdown({required String label, required String? value, required IconData icon, required List<String> items, required Function(String?) onChanged}) {
+  Widget _buildDropdown({required String label, required String? value, required IconData icon, required List<String> items, required Function(String?) onChanged, required AppLocalizations l10n}) {
     return DropdownButtonFormField<String>(
       value: value,
       icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
@@ -506,12 +567,24 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.grey.shade300)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Color(0xFF6B3F69), width: 1.5)),
       ),
-      items: items.map((i) => DropdownMenuItem(value: i, child: Text(i, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis))).toList(),
+      // Visually translate the items while keeping the actual string value safe!
+      items: items.map((i) {
+        String display = i;
+        if (i == 'Male') display = l10n.male;
+        if (i == 'Female') display = l10n.female;
+        if (i == 'Malay') display = l10n.malay;
+        if (i == 'Chinese') display = l10n.chinese;
+        if (i == 'Indian') display = l10n.indian;
+        if (i == 'English') display = l10n.english;
+        if (i == 'Mandarin') display = l10n.mandarin;
+        if (i == 'Tamil') display = l10n.tamil;
+        return DropdownMenuItem(value: i, child: Text(display, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis));
+      }).toList(),
       onChanged: onChanged,
     );
   }
 
-  Widget _buildUploadItem(String label, IconData icon, File? selectedNewFile, String? existingUrl, bool isImage, VoidCallback onUpload) {
+  Widget _buildUploadItem(String label, IconData icon, File? selectedNewFile, String? existingUrl, bool isImage, VoidCallback onUpload, AppLocalizations l10n) {
     bool hasNewFile = selectedNewFile != null;
     bool hasExisting = existingUrl != null && existingUrl.toString().isNotEmpty;
     bool isReady = hasNewFile || hasExisting;
@@ -530,22 +603,22 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
                   const SizedBox(height: 10),
                   Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
                   const SizedBox(height: 15),
-                  Text('$label Options', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF6B3F69))),
+                  Text('$label ${l10n.options}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF6B3F69))),
                   const SizedBox(height: 10),
                   
                   if (hasExisting && !hasNewFile)
                     ListTile(
                       leading: const Icon(Icons.visibility, color: Colors.blue),
-                      title: const Text('View Current Document'),
+                      title: Text(l10n.viewCurrentDocument),
                       onTap: () {
                         Navigator.pop(context);
-                        _viewDocument(existingUrl, isImage);
+                        _viewDocument(existingUrl, isImage, l10n);
                       },
                     ),
                   
                   ListTile(
                     leading: Icon(hasNewFile ? Icons.edit : Icons.upload_file, color: Colors.green),
-                    title: Text(hasNewFile ? 'Change Selected File' : 'Upload New Document'),
+                    title: Text(hasNewFile ? l10n.changeSelectedFile : l10n.uploadNewDocument),
                     onTap: () {
                       Navigator.pop(context);
                       onUpload();
@@ -555,14 +628,14 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
                   if (hasNewFile)
                     ListTile(
                       leading: const Icon(Icons.undo, color: Colors.orange),
-                      title: const Text('Cancel New Upload (Keep Old)'),
+                      title: Text(l10n.cancelNewUpload),
                       onTap: () {
                         Navigator.pop(context);
                         setState(() {
-                          if (label.contains('Passport')) _passportImage = null;
-                          if (label.contains('I/C')) _icFile = null;
-                          if (label.contains('License')) _licenseFile = null;
-                          if (label.contains('Certifications')) _certFile = null;
+                          if (label.contains('Passport') || label.contains('Pasport')) _passportImage = null;
+                          if (label.contains('I/C') || label.contains('K/P')) _icFile = null;
+                          if (label.contains('License') || label.contains('Lesen')) _licenseFile = null;
+                          if (label.contains('Certifications') || label.contains('Sijil')) _certFile = null;
                         });
                       },
                     ),
@@ -586,8 +659,8 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
               Expanded(
                 child: Text(
                   hasNewFile 
-                    ? '$label (Ready to Upload)' 
-                    : hasExisting ? '$label (Uploaded)' : label, 
+                    ? '$label ${l10n.readyToUpload}' 
+                    : hasExisting ? '$label ${l10n.uploaded}' : label, 
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isReady ? Colors.green[700] : Colors.black87)
                 )
               ),
