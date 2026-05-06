@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/mysql_api_service.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED LOCALIZATION
 
 class FindClientScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -38,13 +39,13 @@ class _FindClientScreenState extends State<FindClientScreen> {
   }
 
   // --- Ask for GPS Permission & Get Location ---
-  Future<bool> _determinePosition() async {
+  Future<bool> _determinePosition(AppLocalizations l10n) async {
     bool serviceEnabled;
     LocationPermission permission;
 
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enable GPS location services.'), backgroundColor: Colors.redAccent));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.enableGpsToVerify), backgroundColor: Colors.redAccent));
       return false;
     }
 
@@ -52,13 +53,13 @@ class _FindClientScreenState extends State<FindClientScreen> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location permissions are denied.'), backgroundColor: Colors.redAccent));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.locationPermissionsRequired), backgroundColor: Colors.redAccent));
         return false;
       }
     }
     
     if (permission == LocationPermission.deniedForever) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location permissions are permanently denied.'), backgroundColor: Colors.redAccent));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.locationPermissionsRequired), backgroundColor: Colors.redAccent));
       return false;
     } 
 
@@ -83,13 +84,13 @@ class _FindClientScreenState extends State<FindClientScreen> {
     }
   }
 
-  Future<void> _toggleVisibility(bool value) async {
+  Future<void> _toggleVisibility(bool value, AppLocalizations l10n) async {
     if (_isBusy) return;
 
     setState(() => _isLoading = true);
 
     if (value == true) {
-      bool hasLocation = await _determinePosition();
+      bool hasLocation = await _determinePosition(l10n);
       if (!hasLocation) {
         setState(() => _isLoading = false);
         return; 
@@ -134,10 +135,28 @@ class _FindClientScreenState extends State<FindClientScreen> {
     }
   }
 
+  // Helper method to safely translate Map Keys for UI without changing DB values
+  String _getServiceTranslation(String key, AppLocalizations l10n) {
+    if (key == 'Mobility Service') return l10n.mobilityService;
+    if (key == 'Physiotherapy/Rehabilitation') return l10n.physiotherapy;
+    if (key == 'Daily Assistance/Nursing Care') return l10n.nursingCare;
+    return key;
+  }
+
+  // Helper method to translate database hours
+  String _getDurationTranslation(String key, AppLocalizations l10n) {
+    if (key.contains('1')) return l10n.hour1;
+    if (key.contains('2')) return l10n.hours2;
+    if (key.contains('3')) return l10n.hours3;
+    if (key.contains('4')) return l10n.hours4;
+    if (key.contains('5')) return l10n.hours5;
+    return key;
+  }
+
   // --- UPDATED: Beautiful Detailed Request Bottom Sheet (Self vs Recipient Logic & Payment) ---
-  void _showRequestDetails(Map<String, dynamic> request) {
+  void _showRequestDetails(Map<String, dynamic> request, AppLocalizations l10n) {
     final clientName = request['client_name']?.toString() ?? 'Client';
-    final clientPhone = request['client_phone']?.toString() ?? 'No phone provided';
+    final clientPhone = request['client_phone']?.toString() ?? l10n.noPhoneProvided;
     final clientImage = request['client_image'];
     
     final patientName = request['patient_name']?.toString() ?? 'Patient';
@@ -146,14 +165,12 @@ class _FindClientScreenState extends State<FindClientScreen> {
     final needs = request['special_needs']?.toString() ?? 'None';
     
     final service = request['service_needed']?.toString() ?? 'N/A';
+    final translatedService = _getServiceTranslation(service, l10n);
     final location = request['location']?.toString() ?? 'N/A';
     final date = request['date']?.toString() ?? 'N/A';
 
-    // Format Duration
-    String durationText = request['duration']?.toString() ?? 'N/A';
-    if (durationText.isNotEmpty && durationText != 'N/A') {
-      durationText = durationText[0].toUpperCase() + durationText.substring(1);
-    }
+    // Format Duration safely with translation
+    final durationText = _getDurationTranslation(request['duration']?.toString() ?? '', l10n);
 
     // Format Payment
     final paymentText = request['payment'] != null ? 'RM ${request['payment']}' : 'RM 0.00';
@@ -198,7 +215,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Booked by:', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                      Text(l10n.bookedBy, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                       Text(clientName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                       const SizedBox(height: 2),
                       Row(
@@ -230,7 +247,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
                     children: [
                       const Icon(Icons.medical_information, color: Color(0xFF8D5F8C), size: 20),
                       const SizedBox(width: 8),
-                      const Text('Patient Details', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                      Text(l10n.patientDetails, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                       const Spacer(),
                       // Dynamic Badge (Self vs Recipient)
                       Container(
@@ -240,7 +257,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
                           borderRadius: BorderRadius.circular(10)
                         ),
                         child: Text(
-                          isSelf ? 'Self' : 'Recipient', 
+                          isSelf ? l10n.selfBadge : l10n.recipientBadge, 
                           style: TextStyle(fontSize: 10, color: isSelf ? Colors.green : Colors.blue, fontWeight: FontWeight.bold)
                         ),
                       )
@@ -250,16 +267,16 @@ class _FindClientScreenState extends State<FindClientScreen> {
                   
                   // Only show patient name if it's a different person (Recipient)
                   if (!isSelf) ...[
-                    Text('Patient Name: $patientName', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    Text(l10n.patientNameLabel(patientName), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                     const SizedBox(height: 4),
                   ],
                   
-                  Text('Age: $patientAge years old', style: const TextStyle(fontSize: 13)),
+                  Text(l10n.ageYearsOld(patientAge), style: const TextStyle(fontSize: 13)),
                   const SizedBox(height: 4),
-                  Text('Condition: $condition', style: const TextStyle(fontSize: 13)),
+                  Text(l10n.conditionLabel(condition), style: const TextStyle(fontSize: 13)),
                   if (needs.isNotEmpty && needs != 'Not specified') ...[
                     const SizedBox(height: 4),
-                    Text('Special Needs: $needs', style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w500)),
+                    Text(l10n.specialNeedsLabel(needs), style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w500)),
                   ]
                 ],
               ),
@@ -268,10 +285,10 @@ class _FindClientScreenState extends State<FindClientScreen> {
             const SizedBox(height: 20),
             
             // --- 3. JOB DETAILS ---
-            _buildDetailRow(Icons.medical_services_outlined, 'Service Needed', service),
-            _buildDetailRow(Icons.timer_outlined, 'Expected Duration', durationText), // ADDED DURATION
-            _buildDetailRow(Icons.location_on_outlined, 'Location', location),
-            _buildDetailRow(Icons.calendar_today_outlined, 'Date & Time', date),
+            _buildDetailRow(Icons.medical_services_outlined, l10n.serviceNeededLabel, translatedService),
+            _buildDetailRow(Icons.timer_outlined, l10n.expectedDurationLabel, durationText),
+            _buildDetailRow(Icons.location_on_outlined, l10n.locationLabel, location),
+            _buildDetailRow(Icons.calendar_today_outlined, l10n.dateTimeLabel, date),
             
             // ADDED PAYMENT HIGHLIGHT
             Container(
@@ -285,11 +302,11 @@ class _FindClientScreenState extends State<FindClientScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.payments, color: Colors.green, size: 20),
-                      SizedBox(width: 8),
-                      Text('Expected Payment', style: TextStyle(fontSize: 14, color: Colors.green, fontWeight: FontWeight.bold)),
+                      const Icon(Icons.payments, color: Colors.green, size: 20),
+                      const SizedBox(width: 8),
+                      Text(l10n.expectedPaymentLabel, style: const TextStyle(fontSize: 14, color: Colors.green, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   Text(paymentText, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
@@ -304,14 +321,14 @@ class _FindClientScreenState extends State<FindClientScreen> {
                   child: OutlinedButton(
                     onPressed: () {
                       Navigator.pop(context);
-                      _handleAction(int.parse(request['id'].toString()), 'Rejected');
+                      _handleAction(int.parse(request['id'].toString()), 'Rejected', l10n);
                     },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       side: const BorderSide(color: Colors.redAccent),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Decline', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                    child: Text(l10n.decline, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SizedBox(width: 15),
@@ -320,14 +337,14 @@ class _FindClientScreenState extends State<FindClientScreen> {
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.pop(context);
-                      _handleAction(int.parse(request['id'].toString()), 'Accepted');
+                      _handleAction(int.parse(request['id'].toString()), 'Accepted', l10n);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Accept Request', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: Text(l10n.acceptRequest, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -360,7 +377,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
     );
   }
 
-  Future<void> _handleAction(int requestId, String action) async {
+  Future<void> _handleAction(int requestId, String action, AppLocalizations l10n) async {
     setState(() {
       _incomingRequests.removeWhere((req) => int.parse(req['id'].toString()) == requestId);
       if (action == 'Rejected') {
@@ -379,22 +396,24 @@ class _FindClientScreenState extends State<FindClientScreen> {
             _pollingTimer?.cancel();
             _incomingRequests.clear();
           });
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job Accepted! Please check your Active Services.'), backgroundColor: Colors.green));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.jobAcceptedSuccess), backgroundColor: Colors.green));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'] ?? 'Failed to accept.'), backgroundColor: Colors.redAccent));
         }
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request declined. It has been removed from your list.'), backgroundColor: Colors.orange));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.requestDeclinedSuccess), backgroundColor: Colors.orange));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!; // TRANSLATION ENGINE LOADED
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Find Clients', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(l10n.findClientsTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF6B3F69),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -417,7 +436,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _isOnline ? 'You are Online' : 'You are Offline',
+                          _isOnline ? l10n.youAreOnline : l10n.youAreOffline,
                           style: TextStyle(
                             fontSize: 20, 
                             fontWeight: FontWeight.bold, 
@@ -426,7 +445,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          _isOnline ? 'Scanning database for incoming jobs...' : 'Go online to receive care requests.',
+                          _isOnline ? l10n.scanningForJobs : l10n.goOnlineToReceive,
                           style: const TextStyle(fontSize: 13, color: Colors.black54),
                         ),
                       ],
@@ -439,7 +458,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
                     activeTrackColor: Colors.green,
                     inactiveThumbColor: Colors.white,
                     inactiveTrackColor: Colors.grey.shade400,
-                    onChanged: _toggleVisibility,
+                    onChanged: (val) => _toggleVisibility(val, l10n),
                   ),
                 ],
               ),
@@ -450,19 +469,19 @@ class _FindClientScreenState extends State<FindClientScreen> {
             child: _isLoading 
               ? const Center(child: CircularProgressIndicator(color: Color(0xFF6B3F69)))
               : _isBusy 
-                ? _buildBusyState() 
+                ? _buildBusyState(l10n) 
                 : !_isOnline
-                  ? _buildOfflineState()
+                  ? _buildOfflineState(l10n)
                   : _incomingRequests.isEmpty
-                    ? _buildEmptyRequestsState()
-                    : _buildRequestList(),
+                    ? _buildEmptyRequestsState(l10n)
+                    : _buildRequestList(l10n),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBusyState() {
+  Widget _buildBusyState(AppLocalizations l10n) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -471,12 +490,12 @@ class _FindClientScreenState extends State<FindClientScreen> {
           children: [
             const Icon(Icons.work_history, size: 80, color: Colors.orange),
             const SizedBox(height: 20),
-            const Text('You have an Active Job', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+            Text(l10n.activeJobWarning, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
             const SizedBox(height: 10),
-            const Text(
-              'You cannot go online or accept new requests until your current service is completed.', 
+            Text(
+              l10n.activeJobWarningDesc, 
               textAlign: TextAlign.center, 
-              style: TextStyle(color: Colors.grey, fontSize: 14, height: 1.5)
+              style: const TextStyle(color: Colors.grey, fontSize: 14, height: 1.5)
             ),
             const SizedBox(height: 40),
             SizedBox(
@@ -488,7 +507,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Return to Dashboard', style: TextStyle(color: Colors.white, fontSize: 16)),
+                child: Text(l10n.returnToDashboard, style: const TextStyle(color: Colors.white, fontSize: 16)),
               ),
             )
           ],
@@ -497,38 +516,37 @@ class _FindClientScreenState extends State<FindClientScreen> {
     );
   }
 
-  Widget _buildOfflineState() {
+  Widget _buildOfflineState(AppLocalizations l10n) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.visibility_off_outlined, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 20),
-          const Text('Currently Offline', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+          Text(l10n.currentlyOffline, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 10),
-          const Text('Toggle the switch above to start\nreceiving job requests from clients.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+          Text(l10n.toggleToReceiveRequests, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyRequestsState() {
+  Widget _buildEmptyRequestsState(AppLocalizations l10n) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.radar_outlined, size: 80, color: const Color(0xFF8D5F8C).withOpacity(0.5)),
           const SizedBox(height: 20),
-          const Text('Scanning for requests...', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+          Text(l10n.scanningRequestsTitle, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
           const SizedBox(height: 10),
-          const Text('Keep this screen open. Incoming\nrequests will appear here.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+          Text(l10n.keepScreenOpen, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
         ],
       ),
     );
   }
 
-  // --- UPDATED: Request List Card with Client Picture, Badges & Payment ---
-  Widget _buildRequestList() {
+  Widget _buildRequestList(AppLocalizations l10n) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       itemCount: _incomingRequests.length,
@@ -541,13 +559,14 @@ class _FindClientScreenState extends State<FindClientScreen> {
         final bool isSelf = clientName.trim().toLowerCase() == patientName.trim().toLowerCase();
 
         // Format Duration
-        String durationText = request['duration']?.toString() ?? 'N/A';
-        if (durationText.isNotEmpty && durationText != 'N/A') {
-          durationText = durationText[0].toUpperCase() + durationText.substring(1);
-        }
+        final durationText = _getDurationTranslation(request['duration']?.toString() ?? '', l10n);
 
         // Format Payment
         final paymentText = request['payment'] != null ? 'RM ${request['payment']}' : 'RM 0.00';
+        
+        // Translate the service pill safely
+        final rawService = request['service_needed']?.toString() ?? '';
+        final displayService = rawService.isNotEmpty ? _getServiceTranslation(rawService, l10n) : '';
 
         return Card(
           elevation: 4,
@@ -555,7 +574,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
           margin: const EdgeInsets.only(bottom: 15),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: InkWell(
-            onTap: () => _showRequestDetails(request), 
+            onTap: () => _showRequestDetails(request, l10n), 
             borderRadius: BorderRadius.circular(20),
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -565,12 +584,20 @@ class _FindClientScreenState extends State<FindClientScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(color: const Color(0xFFDDC3C3).withOpacity(0.5), borderRadius: BorderRadius.circular(10)),
-                        child: Text(request['service_needed']?.toString() ?? '', style: const TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold, fontSize: 12)),
+                      // TEXT SHRINKING APPLIED HERE WITH FITTED BOX
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(color: const Color(0xFFDDC3C3).withOpacity(0.5), borderRadius: BorderRadius.circular(10)),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(displayService, style: const TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold, fontSize: 12)),
+                          ),
+                        ),
                       ),
-                      Text(request['distance'] != null ? '${double.parse(request['distance'].toString()).toStringAsFixed(1)} km away' : 'New Request', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+                      const SizedBox(width: 10),
+                      Text(request['distance'] != null ? l10n.kmAway(double.parse(request['distance'].toString()).toStringAsFixed(1)) : l10n.newRequest, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
                     ],
                   ),
                   const SizedBox(height: 15),
@@ -600,10 +627,10 @@ class _FindClientScreenState extends State<FindClientScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(6)),
-                                child: const Text('Booking for: Self', style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                                child: Text(l10n.bookingForSelf, style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
                               )
                             else
-                              Text('Booking for: $patientName (Recipient)', style: const TextStyle(fontSize: 12, color: Colors.blueAccent, fontWeight: FontWeight.w600)),
+                              Text(l10n.bookingForRecipient(patientName), style: const TextStyle(fontSize: 12, color: Colors.blueAccent, fontWeight: FontWeight.w600)),
                           ],
                         ),
                       ),
@@ -630,7 +657,7 @@ class _FindClientScreenState extends State<FindClientScreen> {
                   ),
 
                   const SizedBox(height: 15),
-                  // ADDED: Green Payment and Duration Banner
+                  // Green Payment and Duration Banner
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                     decoration: BoxDecoration(
@@ -660,8 +687,8 @@ class _FindClientScreenState extends State<FindClientScreen> {
                   ),
 
                   const Divider(height: 25),
-                  const Center(
-                    child: Text('Tap to view details & Accept', style: TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold, fontSize: 13)),
+                  Center(
+                    child: Text(l10n.tapToViewDetails, style: const TextStyle(color: Color(0xFF6B3F69), fontWeight: FontWeight.bold, fontSize: 13)),
                   )
                 ],
               ),

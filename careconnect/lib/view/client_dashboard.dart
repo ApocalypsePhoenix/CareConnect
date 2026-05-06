@@ -6,7 +6,8 @@ import 'settingclient_screen.dart';
 import 'booking_screen.dart';
 import 'dart:async';
 import 'booking_history_screen.dart';
-import 'rating_review_screen.dart'; // Added import for the rating screen
+import 'rating_review_screen.dart'; 
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED: Localization Import
 
 class ClientDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -121,17 +122,17 @@ class _ClientDashboardState extends State<ClientDashboard> {
   Future<void> _checkWhyItDisappeared(String bookingId) async {
     final statusResult = await MysqlApiService.checkBookingStatus(bookingId);
     if (mounted && statusResult['success'] == true) {
+      final l10n = AppLocalizations.of(context)!;
       if (statusResult['status'] == 'Cancelled') {
-        _showStatusPopup('Service Terminated', 'The assigned worker has cancelled the booking. The service is now terminated.', Colors.red, Icons.cancel);
+        _showStatusPopup(l10n.serviceTerminated, l10n.workerCancelledBooking, Colors.red, Icons.cancel);
         _fetchLatestHistory(); 
       }
     }
   }
 
-  // ====================================================================
-  // BEAUTIFUL DUMMY PAYMENT GATEWAY (DYNAMIC CALCULATION)
-  // ====================================================================
+  // DUMMY PAYMENT GATEWAY (DYNAMIC CALCULATION)
   void _showDummyPaymentDialog() {
+    final l10n = AppLocalizations.of(context)!;
     bool isProcessing = false;
     bool isSuccess = false;
     
@@ -183,9 +184,9 @@ class _ClientDashboardState extends State<ClientDashboard> {
                         children: [
                           const Icon(Icons.check_circle, color: Colors.green, size: 80),
                           const SizedBox(height: 20),
-                          const Text('Payment Successful!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green)),
+                          Text(l10n.paymentSuccessful, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green)),
                           const SizedBox(height: 10),
-                          const Text('The payment has been successfully released to the Gig Worker.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                          Text(l10n.paymentReleased, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
                           const SizedBox(height: 20),
                           SizedBox(
                             width: double.infinity,
@@ -200,7 +201,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                                   builder: (context) => RatingReviewScreen(
                                     bookingId: _activeService!['id'].toString(), 
                                     reviewerId: widget.user['id'].toString(),   
-                                    revieweeId: _activeService!['worker_id'].toString(), // Client rates the Worker
+                                    revieweeId: _activeService!['worker_id'].toString(), 
                                     revieweeName: _activeService!['worker_name'] ?? 'your Caregiver', 
                                     reviewerRole: widget.user['role'],          
                                   ),
@@ -214,7 +215,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
                               ),
-                              child: const Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                              child: Text(l10n.done, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                             ),
                           )
                         ],
@@ -224,12 +225,12 @@ class _ClientDashboardState extends State<ClientDashboard> {
                         children: [
                           const Icon(Icons.receipt_long, size: 60, color: Color(0xFF6B3F69)),
                           const SizedBox(height: 15),
-                          const Text('Service Completed', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                          Text(l10n.serviceCompleted, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                           const SizedBox(height: 10),
-                          const Text(
-                            'Please complete your payment. The system automatically deducts a 3% fee for platform maintenance and sustainability.', 
+                          Text(
+                            l10n.paymentPromptDesc, 
                             textAlign: TextAlign.center, 
-                            style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4)
+                            style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.4)
                           ),
                           const SizedBox(height: 20),
                           
@@ -244,22 +245,22 @@ class _ClientDashboardState extends State<ClientDashboard> {
                               children: [
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                                  children: [const Text('Total Service Fee', style: TextStyle(color: Colors.black87)), Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))]
+                                  children: [Text(l10n.totalServiceFee, style: const TextStyle(color: Colors.black87)), Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))]
                                 ),
                                 const Divider(height: 25),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                                  children: [const Text('Platform Fee (3%)', style: TextStyle(color: Colors.redAccent, fontSize: 12)), Text('- RM ${adminFee.toStringAsFixed(2)}', style: const TextStyle(color: Colors.redAccent, fontSize: 12))]
+                                  children: [Text(l10n.platformFee, style: const TextStyle(color: Colors.redAccent, fontSize: 12)), Text('- RM ${adminFee.toStringAsFixed(2)}', style: const TextStyle(color: Colors.redAccent, fontSize: 12))]
                                 ),
                                 const SizedBox(height: 8),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                                  children: [const Text('Worker Receives', style: TextStyle(color: Colors.green, fontSize: 12)), Text('RM ${workerEarns.toStringAsFixed(2)}', style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold))]
+                                  children: [Text(l10n.workerReceives, style: const TextStyle(color: Colors.green, fontSize: 12)), Text('RM ${workerEarns.toStringAsFixed(2)}', style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold))]
                                 ),
                                 const Divider(height: 25),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                                  children: [const Text('Total to Pay', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF6B3F69)))]
+                                  children: [Text(l10n.totalToPay, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF6B3F69)))]
                                 ),
                               ],
                             ),
@@ -275,7 +276,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
                                 
                                 await Future.delayed(const Duration(seconds: 2));
 
-                                // FIX: ACTUALLY UPDATE THE DATABASE TO COMPLETED!
                                 final result = await MysqlApiService.updateServiceStatus(_activeService!['id'].toString(), 'Completed');
 
                                 if (result['success'] == true) {
@@ -285,7 +285,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                                   });
                                 } else {
                                   setDialogState(() => isProcessing = false);
-                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment failed to update database.')));
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.paymentFailedDatabase)));
                                 }
                               },
                               style: ElevatedButton.styleFrom(
@@ -294,7 +294,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                               ),
                               child: isProcessing
                                   ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                  : Text('Pay RM ${serviceAmount.toStringAsFixed(2)} Now', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                  : Text(l10n.payNowBtn(serviceAmount.toStringAsFixed(2)), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           )
                         ],
@@ -308,6 +308,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
   }
 
   void _showStatusPopup(String title, String message, Color color, IconData icon) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -327,7 +328,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(backgroundColor: color, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                child: const Text('OK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: Text(l10n.ok, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             )
           ],
@@ -337,8 +338,9 @@ class _ClientDashboardState extends State<ClientDashboard> {
   }
 
   void _showWorkerApprovalDialog() {
+    final l10n = AppLocalizations.of(context)!;
     final workerName = _activeService!['worker_name'] ?? 'Worker';
-    final workerPhone = _activeService!['worker_phone'] ?? 'N/A';
+    final workerPhone = _activeService!['worker_phone'] ?? l10n.noPhoneProvided;
     final workerGender = _activeService!['worker_gender'] ?? 'Not specified';
     final workerAge = _activeService!['worker_age']?.toString() ?? 'N/A';
     final workerRace = _activeService!['worker_race'] ?? 'Not specified';
@@ -357,9 +359,9 @@ class _ClientDashboardState extends State<ClientDashboard> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Worker Found!', style: TextStyle(color: Color(0xFF6B3F69), fontSize: 24, fontWeight: FontWeight.bold)),
+                Text(l10n.workerFound, style: const TextStyle(color: Color(0xFF6B3F69), fontSize: 24, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
-                const Text('Review the worker details below before approving.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
+                Text(l10n.reviewWorkerDesc, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 20),
                 
                 ClipRRect(
@@ -386,23 +388,23 @@ class _ClientDashboardState extends State<ClientDashboard> {
                   ),
                   child: Column(
                     children: [
-                      _buildInfoRow(Icons.person, 'Full Name', workerName),
+                      _buildInfoRow(Icons.person, l10n.fullName, workerName),
                       const Divider(height: 20, color: Colors.black12),
                       Row(
                         children: [
-                          Expanded(child: _buildInfoRow(Icons.cake, 'Age', '$workerAge yrs')),
-                          Expanded(child: _buildInfoRow(Icons.wc, 'Gender', workerGender)),
+                          Expanded(child: _buildInfoRow(Icons.cake, l10n.age, '$workerAge yrs')),
+                          Expanded(child: _buildInfoRow(Icons.wc, l10n.gender, workerGender)),
                         ],
                       ),
                       const Divider(height: 20, color: Colors.black12),
                       Row(
                         children: [
-                          Expanded(child: _buildInfoRow(Icons.groups, 'Race', workerRace)),
-                          Expanded(child: _buildInfoRow(Icons.language, 'Language', workerLanguage)),
+                          Expanded(child: _buildInfoRow(Icons.groups, l10n.race, workerRace)),
+                          Expanded(child: _buildInfoRow(Icons.language, l10n.language, workerLanguage)),
                         ],
                       ),
                       const Divider(height: 20, color: Colors.black12),
-                      _buildInfoRow(Icons.phone, 'Phone Number', workerPhone),
+                      _buildInfoRow(Icons.phone, l10n.phoneNumber, workerPhone),
                     ],
                   ),
                 ),
@@ -422,7 +424,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                           side: const BorderSide(color: Colors.redAccent),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
                         ),
-                        child: const Text('Decline', style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold))
+                        child: Text(l10n.decline, style: const TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold))
                       )
                     ),
                     const SizedBox(width: 15),
@@ -437,7 +439,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                           backgroundColor: Colors.green,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
                         ),
-                        child: const Text('Approve', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: Text(l10n.approve, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                       )
                     ),
                   ]
@@ -479,37 +481,40 @@ class _ClientDashboardState extends State<ClientDashboard> {
   }
 
   Future<void> _approveWorker() async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _isLoadingService = true);
     final result = await MysqlApiService.updateServiceStatus(_activeService!['id'].toString(), 'Accepted');
     if (result['success'] == true) {
-      _showStatusPopup('Worker Approved', 'The worker will now head to your location.', Colors.green, Icons.check_circle);
+      _showStatusPopup(l10n.workerApproved, l10n.workerHeadingToLocation, Colors.green, Icons.check_circle);
       _fetchActiveService(isBackground: false);
     }
   }
 
   Future<void> _declineWorker() async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _isLoadingService = true);
     final result = await MysqlApiService.declineWorker(_activeService!['id'].toString(), _activeService!['worker_id'].toString());
     if (result['success'] == true) {
-      _showStatusPopup('Worker Declined', 'The worker has been declined. Your request is back in the pool for others to accept.', Colors.orange, Icons.refresh);
+      _showStatusPopup(l10n.workerDeclined, l10n.workerDeclinedDesc, Colors.orange, Icons.refresh);
       _fetchActiveService(isBackground: false);
     }
   }
 
   Future<void> _cancelService() async {
     if (_activeService == null || _isCancelling) return;
+    final l10n = AppLocalizations.of(context)!;
 
     bool confirm = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancel Booking', style: TextStyle(color: Colors.red)),
-        content: const Text('Are you sure you want to cancel this booking? The service will be permanently terminated.'),
+        title: Text(l10n.cancelBooking, style: const TextStyle(color: Colors.red)),
+        content: Text(l10n.cancelBookingConfirmDesc),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No, Keep it', style: TextStyle(color: Colors.grey))),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(l10n.noKeepIt, style: const TextStyle(color: Colors.grey))),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true), 
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Yes, Cancel', style: TextStyle(color: Colors.white)),
+            child: Text(l10n.yesCancel, style: const TextStyle(color: Colors.white)),
           )
         ]
       )
@@ -523,7 +528,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
       if (mounted) {
         setState(() => _isCancelling = false);
         if (result['success'] == true) {
-          _showStatusPopup('Booking Cancelled', 'You have successfully cancelled the booking. The service is now terminated.', Colors.red, Icons.cancel);
+          _showStatusPopup(l10n.bookingCancelled, l10n.bookingCancelledSuccess, Colors.red, Icons.cancel);
           _fetchActiveService(isBackground: false); 
           _fetchLatestHistory(); 
         }
@@ -533,6 +538,8 @@ class _ClientDashboardState extends State<ClientDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!; 
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: CustomScrollView(
@@ -578,7 +585,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text('Hello,', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                                      Text(l10n.hello, style: const TextStyle(color: Colors.white70, fontSize: 16)),
                                       Text(
                                         _currentUser['name'], 
                                         style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
@@ -613,19 +620,19 @@ class _ClientDashboardState extends State<ClientDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildBookNowCard(),
+                  _buildBookNowCard(l10n),
                   const SizedBox(height: 30),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Care Recipients', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                      Text(l10n.careRecipients, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                       TextButton(
                         onPressed: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => RecipientScreen(user: _currentUser)))
                                      .then((_) => _fetchRecipients());
                         }, 
-                        child: const Text('Add New')
+                        child: Text(l10n.addNew)
                       ),
                     ],
                   ),
@@ -633,7 +640,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                   _isLoadingRecipients 
                     ? const Center(child: CircularProgressIndicator(color: Color(0xFF6B3F69)))
                     : _recipients.isEmpty 
-                      ? _buildEmptyRecipients()
+                      ? _buildEmptyRecipients(l10n)
                       : _buildRecipientsList(),
 
                   const SizedBox(height: 30),
@@ -641,7 +648,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Active Services', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                      Text(l10n.activeServices, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                       IconButton(
                         icon: const Icon(Icons.refresh, color: Color(0xFF6B3F69)),
                         onPressed: () => _fetchActiveService(isBackground: false), 
@@ -653,27 +660,27 @@ class _ClientDashboardState extends State<ClientDashboard> {
                   if (_isLoadingService)
                     const Center(child: CircularProgressIndicator(color: Color(0xFF6B3F69)))
                   else if (_activeService != null)
-                    _buildActiveJobCard()
+                    _buildActiveJobCard(l10n)
                   else
-                    _buildEmptyBookingStatusCard(),
+                    _buildEmptyBookingStatusCard(l10n),
 
                   const SizedBox(height: 30),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Booking History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                      Text(l10n.bookingHistory, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                       TextButton(
                         onPressed: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => BookingHistoryScreen(user: _currentUser)))
                                      .then((_) => _fetchLatestHistory()); 
                         }, 
-                        child: const Text('View All')
+                        child: Text(l10n.viewAll)
                       ),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  _buildBookingHistoryCard(),
+                  _buildBookingHistoryCard(l10n),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -703,17 +710,17 @@ class _ClientDashboardState extends State<ClientDashboard> {
             });
           }
         },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), label: 'Bookings'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_outline), label: 'Recipients'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), label: l10n.home),
+          BottomNavigationBarItem(icon: const Icon(Icons.calendar_today_outlined), label: l10n.bookings),
+          BottomNavigationBarItem(icon: const Icon(Icons.people_outline), label: l10n.recipientsNav),
+          BottomNavigationBarItem(icon: const Icon(Icons.settings_outlined), label: l10n.settings),
         ],
       ),
     );
   }
 
-  Widget _buildBookNowCard() {
+  Widget _buildBookNowCard(AppLocalizations l10n) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -728,9 +735,9 @@ class _ClientDashboardState extends State<ClientDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Need professional care?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                Text(l10n.needProfessionalCare, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                 const SizedBox(height: 5),
-                const Text('Book a trained worker to assist your loved ones today.', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                Text(l10n.bookWorkerDesc, style: const TextStyle(fontSize: 13, color: Colors.black54)),
                 const SizedBox(height: 15),
                 ElevatedButton(
                   onPressed: () {
@@ -741,7 +748,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                     backgroundColor: const Color(0xFF6B3F69),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Book a Worker', style: TextStyle(color: Colors.white)),
+                  child: Text(l10n.bookWorkerBtn, style: const TextStyle(color: Colors.white)),
                 ),
               ],
             ),
@@ -753,16 +760,16 @@ class _ClientDashboardState extends State<ClientDashboard> {
     );
   }
 
-  Widget _buildEmptyRecipients() {
+  Widget _buildEmptyRecipients(AppLocalizations l10n) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 30),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.shade200)),
-      child: const Column(
+      child: Column(
         children: [
-          Icon(Icons.people_outline, size: 40, color: Colors.grey),
+          const Icon(Icons.people_outline, size: 40, color: Colors.grey),
           const SizedBox(height: 10),
-          Text('No recipients added yet', style: TextStyle(color: Colors.grey)),
+          Text(l10n.noRecipientsAdded, style: const TextStyle(color: Colors.grey)),
         ],
       ),
     );
@@ -810,7 +817,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
     );
   }
 
-  Widget _buildActiveJobCard() {
+  Widget _buildActiveJobCard(AppLocalizations l10n) {
     String currentStatus = _activeService!['status'] ?? 'Pending_Approval';
     String serviceType = _activeService!['service_needed'] ?? '';
     
@@ -821,9 +828,9 @@ class _ClientDashboardState extends State<ClientDashboard> {
 
     List<String> stepTitles = [];
     if (serviceType == 'Mobility Service') {
-      stepTitles = ['Assigned', 'Heading\nto Pickup', 'Arrived\nat Pickup', 'Heading\nto Drop-off'];
+      stepTitles = [l10n.trackAssigned, l10n.trackHeadingPickup, l10n.trackArrivedPickup, l10n.trackHeadingDropoff];
     } else {
-      stepTitles = ['Assigned', 'On The\nWay', 'Arrived\nat Client', 'Service\nOngoing'];
+      stepTitles = [l10n.trackAssigned, l10n.trackOnTheWay, l10n.trackArrivedClient, l10n.trackServiceOngoing];
     }
 
     return Container(
@@ -843,7 +850,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
-                child: const Text('Worker Assigned', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+                child: Text(l10n.workerAssigned, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
               ),
               Text(currentStatus.replaceAll('_', ' ').toUpperCase(), style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
             ],
@@ -869,7 +876,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                   children: [
                     Text(_activeService!['worker_name'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
-                    Text('Service: ${_activeService!['service_needed']}', style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                    Text(l10n.servicePrefix(_activeService!['service_needed']), style: const TextStyle(fontSize: 13, color: Colors.black87)),
                   ],
                 ),
               )
@@ -881,12 +888,11 @@ class _ClientDashboardState extends State<ClientDashboard> {
           Row(children: [
             const Icon(Icons.phone, size: 16, color: Colors.grey),
             const SizedBox(width: 8),
-            Text(_activeService!['worker_phone'] ?? 'No phone provided', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            Text(_activeService!['worker_phone'] ?? l10n.noPhoneProvided, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
           ]),
 
           const SizedBox(height: 20),
           
-          // FIX: Added Payment Required Box
           if (currentStatus == 'Pending_Payment')
             Container(
               padding: const EdgeInsets.all(15),
@@ -894,16 +900,16 @@ class _ClientDashboardState extends State<ClientDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Payment Required', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                  Text(l10n.paymentRequired, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
                   const SizedBox(height: 10),
-                  const Text('The worker has completed the service. Please make payment to finalize the job.', style: TextStyle(fontSize: 13)),
+                  Text(l10n.paymentRequiredDesc, style: const TextStyle(fontSize: 13)),
                   const SizedBox(height: 15),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () => _showDummyPaymentDialog(),
                       icon: const Icon(Icons.payment, color: Colors.white),
-                      label: const Text('Make Payment', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      label: Text(l10n.makePayment, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -921,9 +927,9 @@ class _ClientDashboardState extends State<ClientDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Action Required', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                  Text(l10n.actionRequired, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
                   const SizedBox(height: 10),
-                  const Text('Please review the worker and confirm if you would like them to proceed with the service.', style: TextStyle(fontSize: 13)),
+                  Text(l10n.actionRequiredDesc, style: const TextStyle(fontSize: 13)),
                   const SizedBox(height: 15),
                   Row(
                     children: [
@@ -931,7 +937,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                         child: OutlinedButton(
                           onPressed: _declineWorker,
                           style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.redAccent)),
-                          child: const Text('Decline', style: TextStyle(color: Colors.redAccent)),
+                          child: Text(l10n.decline, style: const TextStyle(color: Colors.redAccent)),
                         )
                       ),
                       const SizedBox(width: 10),
@@ -939,7 +945,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                         child: ElevatedButton(
                           onPressed: _approveWorker,
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                          child: const Text('Approve', style: TextStyle(color: Colors.white)),
+                          child: Text(l10n.approve, style: const TextStyle(color: Colors.white)),
                         )
                       ),
                     ]
@@ -954,7 +960,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Live Delivery Tracker', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(l10n.liveDeliveryTracker, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   const SizedBox(height: 15),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -974,7 +980,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
 
           const SizedBox(height: 10),
           
-          // FIX: Disable the Cancel button if they are pending payment
           if (currentStatus != 'Pending_Payment')
             SizedBox(
               width: double.infinity,
@@ -983,7 +988,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                 icon: _isCancelling 
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.redAccent, strokeWidth: 2))
                   : const Icon(Icons.cancel_outlined, color: Colors.redAccent),
-                label: Text(_isCancelling ? 'Cancelling...' : 'Cancel Booking', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                label: Text(_isCancelling ? l10n.cancelling : l10n.cancelBooking, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
             )
         ],
@@ -1028,20 +1033,20 @@ class _ClientDashboardState extends State<ClientDashboard> {
     );
   }
 
-  Widget _buildEmptyBookingStatusCard() {
+  Widget _buildEmptyBookingStatusCard(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25), border: Border.all(color: Colors.grey.shade200)),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.history_outlined, size: 30, color: Color(0xFF8D5F8C)),
-          SizedBox(width: 15),
+          const Icon(Icons.history_outlined, size: 30, color: Color(0xFF8D5F8C)),
+          const SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('No Active Bookings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Text('Ongoing care services will appear here.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(l10n.noActiveBookings, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(l10n.ongoingServicesDesc, style: const TextStyle(color: Colors.grey, fontSize: 12)),
               ],
             ),
           ),
@@ -1050,7 +1055,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
     );
   }
 
-  Widget _buildBookingHistoryCard() {
+  Widget _buildBookingHistoryCard(AppLocalizations l10n) {
     return InkWell(
       onTap: () {
         Navigator.push(context, MaterialPageRoute(builder: (context) => BookingHistoryScreen(user: _currentUser)))
@@ -1067,12 +1072,12 @@ class _ClientDashboardState extends State<ClientDashboard> {
                 children: [
                   const Icon(Icons.history, size: 30, color: Colors.blueAccent),
                   const SizedBox(width: 15),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('No Past History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        Text('Tap "View All" above or this card to see your completed and cancelled bookings.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        Text(l10n.noPastHistory, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text(l10n.historyDesc, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                       ],
                     ),
                   ),
@@ -1092,7 +1097,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Latest Booking', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        Text(l10n.latestBooking, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                         Text(_latestHistoryItem!['service_needed'] ?? 'Service', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                         Text('${_latestHistoryItem!['formatted_date']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                       ],
