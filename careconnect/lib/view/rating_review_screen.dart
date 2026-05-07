@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/mysql_api_service.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED OFFICIAL DICTIONARY
 
 class RatingReviewScreen extends StatefulWidget {
   final String bookingId;
@@ -27,9 +28,11 @@ class _RatingReviewScreenState extends State<RatingReviewScreen> {
   bool _isLoading = false;
 
   Future<void> _submitReview() async {
+    final l10n = AppLocalizations.of(context)!; // GRAB DICTIONARY BEFORE ASYNC GAP
+
     if (_rating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a star rating.'), backgroundColor: Colors.redAccent),
+        SnackBar(content: Text(l10n.errorNoRating), backgroundColor: Colors.redAccent),
       );
       return;
     }
@@ -51,11 +54,11 @@ class _RatingReviewScreenState extends State<RatingReviewScreen> {
     if (result['success'] == true) {
       Navigator.pop(context, true); // Return true to indicate success
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Thank you for your feedback!'), backgroundColor: Colors.green),
+        SnackBar(content: Text(l10n.successFeedback), backgroundColor: Colors.green),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Failed to submit review.'), backgroundColor: Colors.redAccent),
+        SnackBar(content: Text(result['message'] ?? l10n.errorSubmitReview), backgroundColor: Colors.redAccent),
       );
     }
   }
@@ -68,7 +71,8 @@ class _RatingReviewScreenState extends State<RatingReviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final titleText = widget.reviewerRole == 'Client' ? 'Rate Your Worker' : 'Rate Your Client';
+    final l10n = AppLocalizations.of(context)!; // CONNECTED TO THE DICTIONARY
+    final titleText = widget.reviewerRole == 'Client' ? l10n.rateWorker : l10n.rateClient;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -87,15 +91,25 @@ class _RatingReviewScreenState extends State<RatingReviewScreen> {
               color: const Color(0xFF6B3F69),
             ),
             const SizedBox(height: 15),
-            Text(
-              titleText,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69)),
+            
+            // FITTED BOX: Protects the Title
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                titleText,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69)),
+              ),
             ),
             const SizedBox(height: 8),
-            Text(
-              'How was your experience with ${widget.revieweeName}?',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            
+            // FITTED BOX: Protects the Experience Prompt
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                l10n.experiencePrompt(widget.revieweeName), // Dynamically injects the name
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
             ),
             const SizedBox(height: 25),
 
@@ -124,7 +138,7 @@ class _RatingReviewScreenState extends State<RatingReviewScreen> {
               controller: _commentController,
               maxLines: 3,
               decoration: InputDecoration(
-                hintText: 'Leave a comment (Optional)',
+                hintText: l10n.commentHint,
                 hintStyle: TextStyle(color: Colors.grey.shade400),
                 filled: true,
                 fillColor: Colors.grey.shade50,
@@ -150,7 +164,7 @@ class _RatingReviewScreenState extends State<RatingReviewScreen> {
                 Expanded(
                   child: TextButton(
                     onPressed: () => Navigator.pop(context, false), // User cancelled
-                    child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                    child: Text(l10n.cancel, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
                   ),
                 ),
                 Expanded(
@@ -164,7 +178,11 @@ class _RatingReviewScreenState extends State<RatingReviewScreen> {
                     ),
                     child: _isLoading 
                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Submit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      // FITTED BOX: Protects the Submit Button
+                      : FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(l10n.submitBtn, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                        ),
                   ),
                 ),
               ],

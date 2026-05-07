@@ -7,7 +7,7 @@ import 'booking_screen.dart';
 import 'dart:async';
 import 'booking_history_screen.dart';
 import 'rating_review_screen.dart'; 
-import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED: Localization Import
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; 
 
 class ClientDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -130,11 +130,17 @@ class _ClientDashboardState extends State<ClientDashboard> {
     }
   }
 
-  // DUMMY PAYMENT GATEWAY (DYNAMIC CALCULATION)
   void _showDummyPaymentDialog() {
     final l10n = AppLocalizations.of(context)!;
     bool isProcessing = false;
     bool isSuccess = false;
+    
+    // =========================================================================
+    // FIX: Cache the data locally so the background timer can't destroy it!
+    // =========================================================================
+    final String savedBookingId = _activeService?['id']?.toString() ?? '';
+    final String savedWorkerId = _activeService?['worker_id']?.toString() ?? '';
+    final String savedWorkerName = _activeService?['worker_name']?.toString() ?? 'your Caregiver';
     
     double serviceAmount = 0.0;
     String serviceType = _activeService?['service_needed'] ?? '';
@@ -194,15 +200,15 @@ class _ClientDashboardState extends State<ClientDashboard> {
                               onPressed: () async {
                                 Navigator.pop(context); 
 
-                                // --- POP UP THE RATING SYSTEM ---
+                                // --- TRIGGER RATING POPUP USING CACHED DATA ---
                                 await showDialog(
                                   context: context,
                                   barrierDismissible: false, 
                                   builder: (context) => RatingReviewScreen(
-                                    bookingId: _activeService!['id'].toString(), 
+                                    bookingId: savedBookingId, 
                                     reviewerId: widget.user['id'].toString(),   
-                                    revieweeId: _activeService!['worker_id'].toString(), 
-                                    revieweeName: _activeService!['worker_name'] ?? 'your Caregiver', 
+                                    revieweeId: savedWorkerId, 
+                                    revieweeName: savedWorkerName, 
                                     reviewerRole: widget.user['role'],          
                                   ),
                                 );
@@ -244,23 +250,35 @@ class _ClientDashboardState extends State<ClientDashboard> {
                             child: Column(
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                                  children: [Text(l10n.totalServiceFee, style: const TextStyle(color: Colors.black87)), Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))]
+                                  children: [
+                                    Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(l10n.totalServiceFee, style: const TextStyle(color: Colors.black87)))), 
+                                    const SizedBox(width: 10),
+                                    Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))
+                                  ]
                                 ),
                                 const Divider(height: 25),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                                  children: [Text(l10n.platformFee, style: const TextStyle(color: Colors.redAccent, fontSize: 12)), Text('- RM ${adminFee.toStringAsFixed(2)}', style: const TextStyle(color: Colors.redAccent, fontSize: 12))]
+                                  children: [
+                                    Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(l10n.platformFee, style: const TextStyle(color: Colors.redAccent, fontSize: 12)))), 
+                                    const SizedBox(width: 10),
+                                    Text('- RM ${adminFee.toStringAsFixed(2)}', style: const TextStyle(color: Colors.redAccent, fontSize: 12))
+                                  ]
                                 ),
                                 const SizedBox(height: 8),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                                  children: [Text(l10n.workerReceives, style: const TextStyle(color: Colors.green, fontSize: 12)), Text('RM ${workerEarns.toStringAsFixed(2)}', style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold))]
+                                  children: [
+                                    Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(l10n.workerReceives, style: const TextStyle(color: Colors.green, fontSize: 12)))), 
+                                    const SizedBox(width: 10),
+                                    Text('RM ${workerEarns.toStringAsFixed(2)}', style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold))
+                                  ]
                                 ),
                                 const Divider(height: 25),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                                  children: [Text(l10n.totalToPay, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF6B3F69)))]
+                                  children: [
+                                    Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(l10n.totalToPay, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)))), 
+                                    const SizedBox(width: 10),
+                                    Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: const Color(0xFF6B3F69)))
+                                  ]
                                 ),
                               ],
                             ),
@@ -276,7 +294,8 @@ class _ClientDashboardState extends State<ClientDashboard> {
                                 
                                 await Future.delayed(const Duration(seconds: 2));
 
-                                final result = await MysqlApiService.updateServiceStatus(_activeService!['id'].toString(), 'Completed');
+                                // Pass the safely cached ID instead of _activeService!
+                                final result = await MysqlApiService.updateServiceStatus(savedBookingId, 'Completed');
 
                                 if (result['success'] == true) {
                                   setDialogState(() {
@@ -294,7 +313,10 @@ class _ClientDashboardState extends State<ClientDashboard> {
                               ),
                               child: isProcessing
                                   ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                  : Text(l10n.payNowBtn(serviceAmount.toStringAsFixed(2)), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                  : FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(l10n.payNowBtn(serviceAmount.toStringAsFixed(2)), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                    ),
                             ),
                           )
                         ],
@@ -341,11 +363,15 @@ class _ClientDashboardState extends State<ClientDashboard> {
     final l10n = AppLocalizations.of(context)!;
     final workerName = _activeService!['worker_name'] ?? 'Worker';
     final workerPhone = _activeService!['worker_phone'] ?? l10n.noPhoneProvided;
-    final workerGender = _activeService!['worker_gender'] ?? 'Not specified';
-    final workerAge = _activeService!['worker_age']?.toString() ?? 'N/A';
-    final workerRace = _activeService!['worker_race'] ?? 'Not specified';
-    final workerLanguage = _activeService!['worker_language'] ?? 'Not specified';
     
+    final workerGender = _getGenericTranslation(_activeService!['worker_gender']?.toString().trim() ?? 'Not specified', l10n);
+    final workerRace = _getGenericTranslation(_activeService!['worker_race']?.toString().trim() ?? 'Not specified', l10n);
+    final workerLanguage = _getGenericTranslation(_activeService!['worker_language']?.toString().trim() ?? 'Not specified', l10n);
+    
+    final rawAge = _activeService!['worker_age']?.toString() ?? 'N/A';
+    final isMs = Localizations.localeOf(context).languageCode == 'ms';
+    final workerAgeText = rawAge != 'N/A' ? '$rawAge ${isMs ? 'thn' : 'yrs'}' : 'N/A';
+
     final passportImg = _activeService!['worker_passport'];
 
     showDialog(
@@ -392,7 +418,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                       const Divider(height: 20, color: Colors.black12),
                       Row(
                         children: [
-                          Expanded(child: _buildInfoRow(Icons.cake, l10n.age, '$workerAge yrs')),
+                          Expanded(child: _buildInfoRow(Icons.cake, l10n.age, workerAgeText)),
                           Expanded(child: _buildInfoRow(Icons.wc, l10n.gender, workerGender)),
                         ],
                       ),
@@ -481,6 +507,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
   }
 
   Future<void> _approveWorker() async {
+    if (_activeService == null) return; // FIX: Added safety check
     final l10n = AppLocalizations.of(context)!;
     setState(() => _isLoadingService = true);
     final result = await MysqlApiService.updateServiceStatus(_activeService!['id'].toString(), 'Accepted');
@@ -491,6 +518,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
   }
 
   Future<void> _declineWorker() async {
+    if (_activeService == null) return; // FIX: Added safety check
     final l10n = AppLocalizations.of(context)!;
     setState(() => _isLoadingService = true);
     final result = await MysqlApiService.declineWorker(_activeService!['id'].toString(), _activeService!['worker_id'].toString());
@@ -533,6 +561,51 @@ class _ClientDashboardState extends State<ClientDashboard> {
           _fetchLatestHistory(); 
         }
       }
+    }
+  }
+
+  // --- VISUAL TRANSLATION HELPERS ---
+  String _getServiceTranslation(String key, AppLocalizations l10n) {
+    if (key == 'Mobility Service') return l10n.mobilityService;
+    if (key == 'Physiotherapy/Rehabilitation') return l10n.physiotherapy;
+    if (key == 'Daily Assistance/Nursing Care') return l10n.nursingCare;
+    return key;
+  }
+  
+  String _getGenericTranslation(String key, AppLocalizations l10n) {
+    final k = key.trim(); // TRIMS INVISIBLE SPACES!
+    if (k == 'Male') return l10n.male;
+    if (k == 'Female') return l10n.female;
+    if (k == 'Malay') return l10n.malay;
+    if (k == 'Chinese') return l10n.chinese;
+    if (k == 'Indian') return l10n.indian;
+    if (k == 'English') return l10n.english;
+    if (k == 'Mandarin') return l10n.mandarin;
+    if (k == 'Tamil') return l10n.tamil;
+    if (k == 'Any') return l10n.anyOption;
+    return k;
+  }
+
+  String _getTranslatedRelation(String val, AppLocalizations l10n) {
+    final trimmed = val.trim();
+    if (trimmed == 'Parent') return l10n.parent;
+    if (trimmed == 'Grandparent') return l10n.grandparent;
+    if (trimmed == 'Spouse') return l10n.spouse;
+    if (trimmed == 'Other' || trimmed == 'Others') return l10n.othersOption;
+    return val;
+  }
+
+  String _getStatusTranslation(String status, AppLocalizations l10n) {
+    switch (status) {
+      case 'Pending_Approval': return l10n.statusPending;
+      case 'Accepted': return l10n.statusAccepted;
+      case 'On_The_Way': return l10n.statusOnTheWay;
+      case 'Arrived': return l10n.statusArrived;
+      case 'In_Progress': return l10n.statusInProgress;
+      case 'Pending_Payment': return l10n.statusPendingPayment;
+      case 'Completed': return l10n.statusCompleted;
+      case 'Cancelled': return l10n.statusCancelled;
+      default: return status.replaceAll('_', ' ').toUpperCase();
     }
   }
 
@@ -641,7 +714,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                     ? const Center(child: CircularProgressIndicator(color: Color(0xFF6B3F69)))
                     : _recipients.isEmpty 
                       ? _buildEmptyRecipients(l10n)
-                      : _buildRecipientsList(),
+                      : _buildRecipientsList(l10n),
 
                   const SizedBox(height: 30),
 
@@ -775,7 +848,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
     );
   }
 
-  Widget _buildRecipientsList() {
+  Widget _buildRecipientsList(AppLocalizations l10n) {
     return SizedBox(
       height: 100,
       child: ListView.builder(
@@ -805,7 +878,10 @@ class _ClientDashboardState extends State<ClientDashboard> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(recipient['name'], overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      Text(recipient['relationship'], style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                      Text(
+                        _getTranslatedRelation(recipient['relationship']?.toString() ?? '', l10n), 
+                        style: const TextStyle(color: Colors.grey, fontSize: 11)
+                      ),
                     ],
                   ),
                 ),
@@ -847,12 +923,30 @@ class _ClientDashboardState extends State<ClientDashboard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
-                child: Text(l10n.workerAssigned, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+              Flexible(
+                flex: 1,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(l10n.workerAssigned, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ),
               ),
-              Text(currentStatus.replaceAll('_', ' ').toUpperCase(), style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
+              const SizedBox(width: 10),
+              Flexible(
+                flex: 1,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    _getStatusTranslation(currentStatus, l10n), 
+                    style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 15),
@@ -876,7 +970,10 @@ class _ClientDashboardState extends State<ClientDashboard> {
                   children: [
                     Text(_activeService!['worker_name'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
-                    Text(l10n.servicePrefix(_activeService!['service_needed']), style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                    Text(
+                      l10n.servicePrefix(_getServiceTranslation(_activeService!['service_needed'], l10n)), 
+                      style: const TextStyle(fontSize: 13, color: Colors.black87)
+                    ),
                   ],
                 ),
               )
@@ -988,7 +1085,10 @@ class _ClientDashboardState extends State<ClientDashboard> {
                 icon: _isCancelling 
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.redAccent, strokeWidth: 2))
                   : const Icon(Icons.cancel_outlined, color: Colors.redAccent),
-                label: Text(_isCancelling ? l10n.cancelling : l10n.cancelBooking, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(_isCancelling ? l10n.cancelling : l10n.cancelBooking, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                ),
               ),
             )
         ],
@@ -1098,7 +1198,14 @@ class _ClientDashboardState extends State<ClientDashboard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(l10n.latestBooking, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                        Text(_latestHistoryItem!['service_needed'] ?? 'Service', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _getServiceTranslation(_latestHistoryItem!['service_needed'] ?? 'Service', l10n), 
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)
+                          ),
+                        ),
                         Text('${_latestHistoryItem!['formatted_date']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                       ],
                     ),

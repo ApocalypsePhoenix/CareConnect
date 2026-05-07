@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/mysql_api_service.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED LOCALIZATION
 
 class BookingHistoryScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -40,22 +41,45 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     }
   }
 
+  // --- VISUAL TRANSLATION HELPERS ---
+  String _getServiceTranslation(String key, AppLocalizations l10n) {
+    if (key == 'Mobility Service') return l10n.mobilityService;
+    if (key == 'Physiotherapy/Rehabilitation') return l10n.physiotherapy;
+    if (key == 'Daily Assistance/Nursing Care') return l10n.nursingCare;
+    return key.isNotEmpty ? key : 'Service';
+  }
+
+  String _getStatusTranslation(String status, AppLocalizations l10n) {
+    switch (status) {
+      case 'Pending_Approval': return l10n.statusPending;
+      case 'Accepted': return l10n.statusAccepted;
+      case 'On_The_Way': return l10n.statusOnTheWay;
+      case 'Arrived': return l10n.statusArrived;
+      case 'In_Progress': return l10n.statusInProgress;
+      case 'Pending_Payment': return l10n.statusPendingPayment;
+      case 'Completed': return l10n.statusCompleted;
+      case 'Cancelled': return l10n.statusCancelled;
+      default: return status.replaceAll('_', ' ').toUpperCase();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Check role to adjust the UI text
     final isClient = widget.user['role'] == 'Client';
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Booking History', style: TextStyle(color: Colors.white)), 
+        title: Text(l10n.bookingHistory, style: const TextStyle(color: Colors.white)), 
         backgroundColor: const Color(0xFF6B3F69), 
         iconTheme: const IconThemeData(color: Colors.white)
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator(color: Color(0xFF6B3F69)))
         : _history.isEmpty
-          ? const Center(child: Text('No past bookings found.', style: TextStyle(color: Colors.grey, fontSize: 16)))
+          ? Center(child: Text(l10n.noPastBookingsFound, style: const TextStyle(color: Colors.grey, fontSize: 16)))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _history.length,
@@ -75,7 +99,14 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                         color: isCompleted ? Colors.green : Colors.red
                       ),
                     ),
-                    title: Text(item['service_needed'] ?? 'Service', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    title: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _getServiceTranslation(item['service_needed'] ?? '', l10n), 
+                        style: const TextStyle(fontWeight: FontWeight.bold)
+                      ),
+                    ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -83,21 +114,28 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                         
                         // 3. Display opposite party's name dynamically!
                         if (isClient)
-                          Text('Worker: ${item['worker_name'] ?? 'None Assigned'}')
+                          Text(l10n.workerNameLabel(item['worker_name'] ?? l10n.noneAssigned))
                         else
-                          Text('Client: ${item['client_name'] ?? 'Unknown'}'),
+                          Text(l10n.clientNameLabel(item['client_name'] ?? l10n.unknownName)),
                         
-                        Text('Patient: ${item['patient_name']}'),
+                        Text(l10n.patientNameOnlyLabel(item['patient_name'] ?? l10n.unknownName)),
                         const SizedBox(height: 5),
                         Text(item['formatted_date'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
-                    trailing: Text(
-                      item['status'], 
-                      style: TextStyle(
-                        color: isCompleted ? Colors.green : Colors.red, 
-                        fontWeight: FontWeight.bold
-                      )
+                    trailing: SizedBox(
+                      width: 85, // Constrains width so FittedBox can do its text-shrinking magic!
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          _getStatusTranslation(item['status'] ?? '', l10n), 
+                          style: TextStyle(
+                            color: isCompleted ? Colors.green : Colors.red, 
+                            fontWeight: FontWeight.bold
+                          )
+                        ),
+                      ),
                     ),
                   ),
                 );

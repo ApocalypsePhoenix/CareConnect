@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED LOCALIZATION
 
 class LocationSearchScreen extends StatefulWidget {
   final String title;
@@ -19,7 +20,12 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
   bool _isSearching = false;
 
   // Determine if this is a Dropoff to show the Red Pin instead of Blue Dot
-  bool get _isDropoff => widget.title.toLowerCase().contains('destination') || widget.title.toLowerCase().contains('drop-off');
+  // Added safe Malay checks ('destinasi' or 'hantar') to ensure pins stay correct even when translated!
+  bool get _isDropoff => 
+      widget.title.toLowerCase().contains('destination') || 
+      widget.title.toLowerCase().contains('drop-off') ||
+      widget.title.toLowerCase().contains('destinasi') ||
+      widget.title.toLowerCase().contains('hantar');
 
   // Theme Colors replacing Grab Green
   final Color themePrimary = const Color(0xFF6B3F69);
@@ -50,19 +56,19 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
   }
 
   // Auto-Detect GPS
-  Future<void> _useCurrentLocation() async {
+  Future<void> _useCurrentLocation(AppLocalizations l10n) async {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Detecting your GPS location...'), duration: Duration(seconds: 2)),
+      SnackBar(content: Text(l10n.detectingGps), duration: const Duration(seconds: 2)),
     );
 
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) throw Exception('GPS is disabled.');
+      if (!serviceEnabled) throw Exception(l10n.gpsDisabled);
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) throw Exception('Permissions denied.');
+        if (permission == LocationPermission.denied) throw Exception(l10n.permissionsDenied);
       }
 
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
@@ -89,6 +95,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
   @override
   Widget build(BuildContext context) {
     bool isTyping = _searchController.text.isNotEmpty;
+    final l10n = AppLocalizations.of(context)!; // TRANSLATION INJECTED
 
     return DefaultTabController(
       length: 3,
@@ -169,18 +176,18 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
                           indicatorColor: themePrimary,
                           indicatorWeight: 3,
                           labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                          tabs: const [
-                            Tab(text: 'Recent'),
-                            Tab(text: 'Suggested'),
-                            Tab(text: 'Saved'),
+                          tabs: [
+                            Tab(child: FittedBox(child: Text(l10n.recentTab))),
+                            Tab(child: FittedBox(child: Text(l10n.suggestedTab))),
+                            Tab(child: FittedBox(child: Text(l10n.savedTab))),
                           ],
                         ),
                         Expanded(
                           child: TabBarView(
                             children: [
-                              _buildRecentTab(),
-                              const Center(child: Text('No suggestions yet', style: TextStyle(color: Colors.grey))),
-                              _buildSavedTab(),
+                              _buildRecentTab(l10n),
+                              Center(child: Text(l10n.noSuggestions, style: const TextStyle(color: Colors.grey))),
+                              _buildSavedTab(l10n),
                             ],
                           ),
                         ),
@@ -195,11 +202,11 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         floatingActionButton: isTyping ? null : FloatingActionButton.extended(
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Map Interface opening...')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.mapInterfaceOpening)));
           },
           backgroundColor: themeLight.withOpacity(0.5),
           elevation: 0,
-          label: Text('Choose on Map', style: TextStyle(color: themePrimary, fontWeight: FontWeight.bold)),
+          label: FittedBox(child: Text(l10n.chooseOnMap, style: TextStyle(color: themePrimary, fontWeight: FontWeight.bold))),
           icon: Icon(Icons.map_outlined, color: themePrimary),
         ),
       ),
@@ -208,16 +215,16 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
 
   // --- TAB CONTENTS ---
 
-  Widget _buildRecentTab() {
+  Widget _buildRecentTab(AppLocalizations l10n) {
     return ListView(
       padding: const EdgeInsets.only(top: 10, bottom: 80), // bottom padding for floating button
       children: [
         _buildGrabListTile(
           icon: Icons.my_location,
           iconColor: Colors.blue,
-          title: 'Current Location',
-          subtitle: 'Auto-detect using GPS',
-          onTap: _useCurrentLocation,
+          title: l10n.currentLocation,
+          subtitle: l10n.autoDetectGps,
+          onTap: () => _useCurrentLocation(l10n),
         ),
         const Divider(height: 1),
         _buildGrabListTile(
@@ -231,14 +238,14 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
     );
   }
 
-  Widget _buildSavedTab() {
+  Widget _buildSavedTab(AppLocalizations l10n) {
     return ListView(
       padding: const EdgeInsets.only(top: 10),
       children: [
         _buildGrabListTile(
           icon: Icons.favorite,
           iconColor: Colors.red,
-          title: 'Home',
+          title: l10n.homeLocation,
           subtitle: '10, Lorong 2, Bandar Tasek Mutiara',
           onTap: () => _mockSelectLocation('10, Lorong 2, Bandar Tasek Mutiara', 5.2796, 100.4908),
         ),

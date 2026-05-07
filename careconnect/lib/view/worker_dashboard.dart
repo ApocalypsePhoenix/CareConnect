@@ -6,7 +6,7 @@ import 'dart:async';
 import 'booking_history_screen.dart'; 
 import 'settingworker_screen.dart';
 import 'rating_review_screen.dart'; 
-import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED: Localization Import
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class WorkerDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -86,7 +86,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
   Future<void> _checkWhyItDisappeared(String bookingId) async {
     final statusResult = await MysqlApiService.checkBookingStatus(bookingId);
     if (mounted && statusResult['success'] == true) {
-      final l10n = AppLocalizations.of(context)!; // Grab translations for the popup
+      final l10n = AppLocalizations.of(context)!;
       
       if (statusResult['status'] == 'Cancelled') {
         _showStatusPopup(l10n.serviceTerminated, l10n.clientCancelledBooking, Colors.red, Icons.cancel);
@@ -186,14 +186,29 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
               Text('+ RM ${workerEarns.toStringAsFixed(2)}', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.black87)),
               const SizedBox(height: 20),
               
+              // ===============================================
+              // UPDATED: PAYMENT RECEIPT ROW FIX WITH FITTED BOX
+              // ===============================================
               Container(
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey.shade200)),
                 child: Column(
                   children: [
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(l10n.clientPaid, style: const TextStyle(color: Colors.black87)), Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))]),
+                    Row(
+                      children: [
+                        Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(l10n.clientPaid, style: const TextStyle(color: Colors.black87)))), 
+                        const SizedBox(width: 10),
+                        Text('RM ${serviceAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))
+                      ]
+                    ),
                     const Divider(height: 20),
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(l10n.platformFee, style: const TextStyle(color: Colors.redAccent, fontSize: 13)), Text('- RM ${adminFee.toStringAsFixed(2)}', style: const TextStyle(color: Colors.redAccent, fontSize: 13))]),
+                    Row(
+                      children: [
+                        Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(l10n.platformFee, style: const TextStyle(color: Colors.redAccent, fontSize: 13)))), 
+                        const SizedBox(width: 10),
+                        Text('- RM ${adminFee.toStringAsFixed(2)}', style: const TextStyle(color: Colors.redAccent, fontSize: 13))
+                      ]
+                    ),
                   ],
                 ),
               ),
@@ -348,9 +363,31 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
     }
   }
 
+  // --- VISUAL TRANSLATION HELPERS ---
+  String _getServiceTranslation(String key, AppLocalizations l10n) {
+    if (key == 'Mobility Service') return l10n.mobilityService;
+    if (key == 'Physiotherapy/Rehabilitation') return l10n.physiotherapy;
+    if (key == 'Daily Assistance/Nursing Care') return l10n.nursingCare;
+    return key;
+  }
+
+  String _getStatusTranslation(String status, AppLocalizations l10n) {
+    switch (status) {
+      case 'Pending_Approval': return l10n.statusPending;
+      case 'Accepted': return l10n.statusAccepted;
+      case 'On_The_Way': return l10n.statusOnTheWay;
+      case 'Arrived': return l10n.statusArrived;
+      case 'In_Progress': return l10n.statusInProgress;
+      case 'Pending_Payment': return l10n.statusPendingPayment;
+      case 'Completed': return l10n.statusCompleted;
+      case 'Cancelled': return l10n.statusCancelled;
+      default: return status.replaceAll('_', ' ').toUpperCase();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!; // Initialized localization
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -397,7 +434,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(l10n.welcomeBackName(''), style: const TextStyle(color: Colors.white70, fontSize: 16)), // Fallback usage
+                                      Text(l10n.hello, style: const TextStyle(color: Colors.white70, fontSize: 16)), 
                                       Text(
                                         _currentUser['name'], 
                                         style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
@@ -503,7 +540,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
         items: [
           BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), label: l10n.home),
           BottomNavigationBarItem(icon: const Icon(Icons.person_search_outlined), label: l10n.clientsNav),
-          BottomNavigationBarItem(icon: const Icon(Icons.history_outlined), label: l10n.bookingHistory.split(' ')[0]), // Rough fallback
+          BottomNavigationBarItem(icon: const Icon(Icons.history_outlined), label: l10n.bookings),
           BottomNavigationBarItem(icon: const Icon(Icons.settings_outlined), label: l10n.settings),
         ],
       ),
@@ -598,12 +635,33 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
-                child: Text(_activeService!['service_needed'], style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+              Flexible(
+                flex: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _getServiceTranslation(_activeService!['service_needed'], l10n),
+                      style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)
+                    ),
+                  ),
+                ),
               ),
-              Text(currentStatus.replaceAll('_', ' ').toUpperCase(), style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
+              const SizedBox(width: 10),
+              Flexible(
+                flex: 1,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    _getStatusTranslation(currentStatus, l10n), 
+                    style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 15),
@@ -631,7 +689,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
           ],
          
           const Divider(height: 30),
-          
+        
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -639,9 +697,12 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
               icon: _isUpdatingStatus 
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
                 : Icon(buttonIcon, color: Colors.white),
-              label: Text(
-                _isUpdatingStatus ? l10n.verifying : buttonText, 
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  _isUpdatingStatus ? l10n.verifying : buttonText, 
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: currentStatus == 'In_Progress' 
@@ -738,7 +799,15 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(l10n.latestJob, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                        Text(_latestHistoryItem!['service_needed'] ?? 'Service', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        // FITTED BOX ADDED HERE TO PREVENT CLIPPING
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _getServiceTranslation(_latestHistoryItem!['service_needed'] ?? 'Service', l10n), 
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)
+                          ),
+                        ),
                         Text('${_latestHistoryItem!['formatted_date']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                       ],
                     ),

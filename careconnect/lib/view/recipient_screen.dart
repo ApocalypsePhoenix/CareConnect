@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/mysql_api_service.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED LOCALIZATION
 
 class RecipientScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -36,33 +37,62 @@ class _RecipientScreenState extends State<RecipientScreen> {
     }
   }
 
-  // --- NEW: Delete Logic with Confirmation Dialog ---
-  Future<void> _deleteRecipient(String id) async {
-    // 1. Show confirmation dialog
+  // --- LOCAL TRANSLATION HELPER (Saves you from editing the dictionary!) ---
+  String _getLocalText(String key, String lang) {
+    if (lang == 'ms') {
+      switch (key) {
+        case 'Delete Recipient': return 'Padam Penerima';
+        case 'DeleteConfirm': return 'Adakah anda pasti mahu memadam penerima penjagaan ini? Tindakan ini tidak boleh dipulihkan.';
+        case 'Delete': return 'Padam';
+        case 'Edit': return 'Sunting';
+        case 'Add New Care Recipient': return 'Tambah Penerima Penjagaan Baru';
+        case 'Edit Care Recipient Details': return 'Sunting Butiran Penerima';
+        case 'egName': return 'cth. Ahmad Bin Abu';
+        case 'egAge': return 'cth. 65';
+        case 'notesHint': return 'Sebarang keperluan khusus atau nota...';
+        case 'Save': return 'Simpan';
+        case 'Add new recipient here!': return 'Tambah penerima baru di sini!';
+        case 'Notes': return 'Nota';
+        case '(Optional)': return '(Pilihan)'; // <--- Added this translation!
+      }
+    }
+    // English Defaults
+    switch (key) {
+      case 'DeleteConfirm': return 'Are you sure you want to delete this care recipient? This action cannot be undone.';
+      case 'egName': return 'e.g. John Doe';
+      case 'egAge': return 'e.g. 65';
+      case 'notesHint': return 'Any specific requirements or notes...';
+      case '(Optional)': return '(Optional)'; // <--- Added this translation!
+      default: return key;
+    }
+    return key;
+  }
+
+  // --- DELETE LOGIC ---
+  Future<void> _deleteRecipient(String id, AppLocalizations l10n, String lang) async {
     bool confirmDelete = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Delete Recipient', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to delete this care recipient? This action cannot be undone.'),
+        title: Text(_getLocalText('Delete Recipient', lang), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+        content: Text(_getLocalText('DeleteConfirm', lang)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false), // Cancel
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.pop(context, false), 
+            child: Text(l10n.cancel, style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true), // Confirm
+            onPressed: () => Navigator.pop(context, true), 
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+            child: Text(_getLocalText('Delete', lang), style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
-    ) ?? false; // Default to false if user taps outside the box
+    ) ?? false;
 
-    // 2. If confirmed, proceed to delete via API
     if (confirmDelete) {
       setState(() => _isLoading = true);
       
@@ -73,7 +103,7 @@ class _RecipientScreenState extends State<RecipientScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Recipient deleted successfully!'), backgroundColor: Colors.green),
           );
-          _fetchRecipients(); // Refresh list to show it was removed
+          _fetchRecipients(); 
         } else {
           setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -84,7 +114,7 @@ class _RecipientScreenState extends State<RecipientScreen> {
     }
   }
 
-  void _showAddRecipientDialog() {
+  void _showAddRecipientDialog(AppLocalizations l10n, String lang) {
     TextEditingController nameController = TextEditingController();
     TextEditingController ageController = TextEditingController();
     TextEditingController specialNeedsController = TextEditingController();
@@ -120,53 +150,60 @@ class _RecipientScreenState extends State<RecipientScreen> {
                           onPressed: () => Navigator.pop(context),
                         ),
                         const SizedBox(width: 10),
-                        const Expanded(
-                          child: Text('Add New Care Recipient', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(_getLocalText('Add New Care Recipient', lang), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
 
-                    _buildLabel('Full Name'),
+                    _buildLabel(l10n.fullName),
                     _buildTextField(
                       controller: nameController,
-                      hintText: 'e.g. John Doe',
+                      hintText: _getLocalText('egName', lang),
                     ),
                     const SizedBox(height: 15),
 
-                    _buildLabel('Relationship'),
-                    _buildDropdown(
+                    _buildLabel(l10n.relationship),
+                    _buildTranslatedDropdown(
                       value: selectedRelationship,
                       options: relationshipOptions,
+                      isMedical: false,
+                      l10n: l10n,
                       onChanged: (val) => setState(() => selectedRelationship = val),
                     ),
                     const SizedBox(height: 15),
 
-                    _buildLabel('Age'),
+                    _buildLabel(l10n.age),
                     _buildTextField(
                       controller: ageController,
-                      hintText: 'e.g. 65',
+                      hintText: _getLocalText('egAge', lang),
                       keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 15),
 
-                    _buildLabel('Medical Conditions'),
-                    _buildDropdown(
+                    _buildLabel(l10n.medicalCondition),
+                    _buildTranslatedDropdown(
                       value: selectedMedicalCondition,
                       options: medicalOptions,
+                      isMedical: true,
+                      l10n: l10n,
                       onChanged: (val) => setState(() => selectedMedicalCondition = val),
                     ),
                     const SizedBox(height: 15),
 
-                    _buildLabel('Special Needs (Optional)'),
+                    _buildLabel('${l10n.specialNeeds} ${_getLocalText('(Optional)', lang)}'),
                     _buildTextField(
                       controller: specialNeedsController,
-                      hintText: 'Any specific requirements or notes...',
+                      hintText: _getLocalText('notesHint', lang),
                       maxLines: 4,
                     ),
                     const SizedBox(height: 24),
 
-                    // Full-width Save Button
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -181,7 +218,6 @@ class _RecipientScreenState extends State<RecipientScreen> {
 
                           setState(() => isSaving = true);
                           
-                          // Call the API service to insert into the database
                           final success = await MysqlApiService.addRecipient(
                             userId: int.parse(widget.user['id'].toString()),
                             name: nameController.text,
@@ -198,8 +234,8 @@ class _RecipientScreenState extends State<RecipientScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Recipient added successfully!'), backgroundColor: Colors.green),
                               );
-                              Navigator.pop(context); // Close the popup
-                              _fetchRecipients(); // Refresh your list
+                              Navigator.pop(context); 
+                              _fetchRecipients(); 
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Failed to add recipient.'), backgroundColor: Colors.red),
@@ -216,9 +252,9 @@ class _RecipientScreenState extends State<RecipientScreen> {
                                 width: 24, height: 24, 
                                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
                               )
-                            : const Text(
-                                'Save', 
-                                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                            : Text(
+                                _getLocalText('Save', lang), 
+                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
                               ),
                       ),
                     ),
@@ -232,8 +268,7 @@ class _RecipientScreenState extends State<RecipientScreen> {
     );
   }
 
-  // Method to show all details of a specific recipient
-  void _showRecipientDetails(Map<String, dynamic> recipient) {
+  void _showRecipientDetails(Map<String, dynamic> recipient, AppLocalizations l10n, String lang) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -250,9 +285,13 @@ class _RecipientScreenState extends State<RecipientScreen> {
             ),
             const SizedBox(width: 15),
             Expanded(
-              child: Text(
-                recipient['name']?.toString() ?? 'Unknown',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B3F69), fontSize: 22),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  recipient['name']?.toString() ?? 'Unknown',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B3F69), fontSize: 22),
+                ),
               ),
             ),
           ],
@@ -263,36 +302,35 @@ class _RecipientScreenState extends State<RecipientScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Divider(height: 30),
-              _buildDetailRow(Icons.family_restroom, 'Relationship', recipient['relationship']),
+              _buildDetailRow(Icons.family_restroom, l10n.relationship, _getTranslatedRelation(recipient['relationship'] ?? 'Others', l10n)),
               const SizedBox(height: 16),
-              _buildDetailRow(Icons.cake, 'Age', recipient['age']),
+              _buildDetailRow(Icons.cake, l10n.age, recipient['age']),
               const SizedBox(height: 16),
-              _buildDetailRow(Icons.medical_services, 'Medical Conditions', recipient['medical_condition']),
+              _buildDetailRow(Icons.medical_services, l10n.medicalCondition, _getTranslatedMedical(recipient['medical_condition'] ?? 'Others', l10n)),
               const SizedBox(height: 16),
-              _buildDetailRow(Icons.note_alt_outlined, 'Notes', recipient['special_needs']),
+              _buildDetailRow(Icons.note_alt_outlined, _getLocalText('Notes', lang), recipient['special_needs']),
             ],
           ),
         ),
         actions: [
-          // --- UPDATED: Added Delete Button inside the Details view ---
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Close details view first
-              _deleteRecipient(recipient['id'].toString()); // Open delete confirmation
+              Navigator.pop(context); 
+              _deleteRecipient(recipient['id'].toString(), l10n, lang); 
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: Text(_getLocalText('Delete', lang), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close', style: TextStyle(color: Colors.grey, fontSize: 16)),
+            child: Text(l10n.close, style: const TextStyle(color: Colors.grey, fontSize: 16)),
           ),
           ElevatedButton.icon(
             onPressed: () {
-              Navigator.pop(context); // Close the detail dialog first
-              _showEditRecipientPopup(recipient); // Open the edit popup
+              Navigator.pop(context); 
+              _showEditRecipientPopup(recipient, l10n, lang); 
             },
             icon: const Icon(Icons.edit, size: 18, color: Colors.white),
-            label: const Text('Edit', style: TextStyle(color: Colors.white)),
+            label: Text(_getLocalText('Edit', lang), style: const TextStyle(color: Colors.white)),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF6B3F69),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -303,8 +341,7 @@ class _RecipientScreenState extends State<RecipientScreen> {
     );
   }
 
-  // Edit Recipient Popup
-  void _showEditRecipientPopup(Map<String, dynamic> recipient) {
+  void _showEditRecipientPopup(Map<String, dynamic> recipient, AppLocalizations l10n, String lang) {
     TextEditingController nameController = TextEditingController(text: recipient['name']?.toString() ?? '');
     TextEditingController ageController = TextEditingController(text: recipient['age']?.toString() ?? '');
     TextEditingController specialNeedsController = TextEditingController(text: recipient['special_needs']?.toString() ?? '');
@@ -352,58 +389,65 @@ class _RecipientScreenState extends State<RecipientScreen> {
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           onPressed: () {
-                            Navigator.pop(context); // Close edit dialog
-                            _showRecipientDetails(recipient); // Go back to details
+                            Navigator.pop(context); 
+                            _showRecipientDetails(recipient, l10n, lang); 
                           },
                         ),
                         const SizedBox(width: 10),
-                        const Expanded(
-                          child: Text('Edit Care Recipient Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(_getLocalText('Edit Care Recipient Details', lang), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
 
-                    _buildLabel('Full Name'),
+                    _buildLabel(l10n.fullName),
                     _buildTextField(
                       controller: nameController,
-                      hintText: 'e.g. John Doe',
+                      hintText: _getLocalText('egName', lang),
                     ),
                     const SizedBox(height: 15),
 
-                    _buildLabel('Relationship'),
-                    _buildDropdown(
+                    _buildLabel(l10n.relationship),
+                    _buildTranslatedDropdown(
                       value: selectedRelationship,
                       options: relationshipOptions,
+                      isMedical: false,
+                      l10n: l10n,
                       onChanged: (val) => setState(() => selectedRelationship = val),
                     ),
                     const SizedBox(height: 15),
 
-                    _buildLabel('Age'),
+                    _buildLabel(l10n.age),
                     _buildTextField(
                       controller: ageController,
-                      hintText: 'e.g. 65',
+                      hintText: _getLocalText('egAge', lang),
                       keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 15),
 
-                    _buildLabel('Medical Conditions'),
-                    _buildDropdown(
+                    _buildLabel(l10n.medicalCondition),
+                    _buildTranslatedDropdown(
                       value: selectedMedicalCondition,
                       options: medicalOptions,
+                      isMedical: true,
+                      l10n: l10n,
                       onChanged: (val) => setState(() => selectedMedicalCondition = val),
                     ),
                     const SizedBox(height: 15),
 
-                    _buildLabel('Special Needs (Optional)'),
+                    _buildLabel('${l10n.specialNeeds} ${_getLocalText('(Optional)', lang)}'),
                     _buildTextField(
                       controller: specialNeedsController,
-                      hintText: 'Any specific requirements or notes...',
+                      hintText: _getLocalText('notesHint', lang),
                       maxLines: 4,
                     ),
                     const SizedBox(height: 24),
 
-                    // Full-width Save Button
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -420,7 +464,6 @@ class _RecipientScreenState extends State<RecipientScreen> {
                             return;
                           }
 
-                          // Call the API service to update the database
                           final success = await MysqlApiService.updateRecipient(
                             id: safeId,
                             name: nameController.text,
@@ -437,8 +480,8 @@ class _RecipientScreenState extends State<RecipientScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Recipient updated successfully!'), backgroundColor: Colors.green),
                               );
-                              Navigator.pop(context); // Close the popup
-                              _fetchRecipients(); // Refresh your list
+                              Navigator.pop(context); 
+                              _fetchRecipients(); 
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Failed to update recipient.'), backgroundColor: Colors.red),
@@ -455,9 +498,9 @@ class _RecipientScreenState extends State<RecipientScreen> {
                                 width: 24, height: 24, 
                                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
                               )
-                            : const Text(
-                                'Save', 
-                                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                            : Text(
+                                _getLocalText('Save', lang), 
+                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
                               ),
                       ),
                     ),
@@ -471,7 +514,23 @@ class _RecipientScreenState extends State<RecipientScreen> {
     );
   }
 
-  // Helper widget to build consistent detail rows in the dialog
+  // --- VISUAL TRANSLATION HANDLERS ---
+  String _getTranslatedMedical(String val, AppLocalizations l10n) {
+    if (val == 'High blood pressure') return l10n.highBloodPressure;
+    if (val == 'Heart diseases and stroke') return l10n.heartDisease;
+    if (val == 'Diabetes') return l10n.diabetes;
+    if (val == 'Others') return l10n.others;
+    return val;
+  }
+
+  String _getTranslatedRelation(String val, AppLocalizations l10n) {
+    if (val == 'Parent') return l10n.parent;
+    if (val == 'Grandparent') return l10n.grandparent;
+    if (val == 'Spouse') return l10n.spouse;
+    if (val == 'Others') return l10n.others;
+    return val;
+  }
+
   Widget _buildDetailRow(IconData icon, String label, dynamic value) {
     final String displayValue = (value == null || value.toString().trim().isEmpty) 
         ? 'Not specified' 
@@ -502,7 +561,6 @@ class _RecipientScreenState extends State<RecipientScreen> {
     );
   }
 
-  // Label builder
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -513,7 +571,6 @@ class _RecipientScreenState extends State<RecipientScreen> {
     );
   }
 
-  // Text field builder
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
@@ -546,10 +603,11 @@ class _RecipientScreenState extends State<RecipientScreen> {
     );
   }
 
-  // Dropdown builder
-  Widget _buildDropdown({
+  Widget _buildTranslatedDropdown({
     required String? value,
     required List<String> options,
+    required bool isMedical,
+    required AppLocalizations l10n,
     required Function(String?) onChanged,
   }) {
     return DropdownButtonFormField<String>(
@@ -574,9 +632,10 @@ class _RecipientScreenState extends State<RecipientScreen> {
       ),
       isExpanded: true,
       items: options.map((String opt) {
+        String display = isMedical ? _getTranslatedMedical(opt, l10n) : _getTranslatedRelation(opt, l10n);
         return DropdownMenuItem<String>(
           value: opt,
-          child: Text(opt, overflow: TextOverflow.ellipsis),
+          child: Text(display, overflow: TextOverflow.ellipsis),
         );
       }).toList(),
       onChanged: onChanged,
@@ -585,10 +644,13 @@ class _RecipientScreenState extends State<RecipientScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final lang = Localizations.localeOf(context).languageCode; // Used for local translator
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Care Recipients', style: TextStyle(color: Colors.white)),
+        title: Text(l10n.careRecipients, style: const TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF6B3F69),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -601,20 +663,20 @@ class _RecipientScreenState extends State<RecipientScreen> {
                     children: [
                       const Icon(Icons.people_alt_outlined, size: 80, color: Colors.grey),
                       const SizedBox(height: 16),
-                      const Text(
-                        'No recipients found.',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      Text(
+                        l10n.noRecipientsFound,
+                        style: const TextStyle(fontSize: 18, color: Colors.grey),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Add new recipient here!',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69)),
+                      Text(
+                        _getLocalText('Add new recipient here!', lang),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69)),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
-                        onPressed: _showAddRecipientDialog,
+                        onPressed: () => _showAddRecipientDialog(l10n, lang),
                         icon: const Icon(Icons.add, color: Colors.white),
-                        label: const Text('Add Recipient', style: TextStyle(color: Colors.white)),
+                        label: Text(l10n.addNew, style: const TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF6B3F69),
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -644,29 +706,33 @@ class _RecipientScreenState extends State<RecipientScreen> {
                                 color: Color(0xFF6B3F69), fontSize: 20, fontWeight: FontWeight.bold),
                           ),
                         ),
-                        title: Text(
-                          recipient['name']?.toString() ?? 'Unknown',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        title: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            recipient['name']?.toString() ?? 'Unknown',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                          ),
                         ),
                         subtitle: Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
-                            'Relationship: ${recipient['relationship']}',
+                            '${l10n.relationship}: ${_getTranslatedRelation(recipient['relationship'] ?? 'Others', l10n)}',
                             style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
                           ),
                         ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-                        onTap: () => _showRecipientDetails(recipient), // Tapping opens the detail dialog
+                        onTap: () => _showRecipientDetails(recipient, l10n, lang), 
                       ),
                     );
                   },
                 ),
       floatingActionButton: _recipients.isNotEmpty
           ? FloatingActionButton.extended(
-              onPressed: _showAddRecipientDialog,
+              onPressed: () => _showAddRecipientDialog(l10n, lang),
               backgroundColor: const Color(0xFF6B3F69),
               icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('Add New', style: TextStyle(color: Colors.white)),
+              label: Text(l10n.addNew, style: const TextStyle(color: Colors.white)),
             )
           : null,
     );
