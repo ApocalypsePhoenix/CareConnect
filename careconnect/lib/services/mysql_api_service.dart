@@ -32,6 +32,25 @@ class MysqlApiService {
     }
   }
 
+  /// Secure Google Sign-In API Call
+  static Future<Map<String, dynamic>> loginWithGoogle(String email, String idToken) async {
+    final url = Uri.parse('$_baseUrl/login.php');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'id_token': idToken,
+          'login_type': 'google',
+        }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
   /// Updates the user's profile information
   static Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> updateData) async {
     final url = Uri.parse('$_baseUrl/update_profile.php');
@@ -313,6 +332,7 @@ class MysqlApiService {
       return {'success': false, 'message': 'Network error: $e'};
     }
   }
+  
   // NEW: TWO-WAY REVIEW & RATING API
   static Future<Map<String, dynamic>> submitReview({
     required String bookingId,

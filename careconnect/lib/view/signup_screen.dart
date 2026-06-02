@@ -180,6 +180,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => _isLoading = true);
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn();
+
+      // FORCE Google Account Picker to display every single time.
+      // Signing out first clears the cached session and resets the native dialog picker.
+      try {
+        await googleSignIn.signOut();
+      } catch (_) {
+        // Safe to ignore if there was no active cached account
+      }
+      
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       
       if (googleUser != null) {
