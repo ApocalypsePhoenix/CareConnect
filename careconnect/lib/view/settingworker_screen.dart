@@ -8,6 +8,7 @@ import '../services/mysql_api_service.dart';
 import 'login_screen.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED
 import '../main.dart'; // ADDED: Connects to the Global Magic Switch
+import 'package:shared_preferences/shared_preferences.dart'; // ADDED: To save language permanently
 
 class SettingWorkerScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -399,9 +400,14 @@ class _SettingWorkerScreenState extends State<SettingWorkerScreen> {
                         DropdownMenuItem(value: 'en', child: Text(l10n.languageEnglish)),
                         DropdownMenuItem(value: 'ms', child: Text(l10n.languageMalay)),
                       ],
-                      onChanged: (String? newLanguageCode) {
+                      onChanged: (String? newLanguageCode) async {
                         if (newLanguageCode != null) {
+                          // Change the global language state instantly
                           appLocale.value = Locale(newLanguageCode);
+                          
+                          // Save the choice permanently in device storage
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString('language_code', newLanguageCode);
                         }
                       },
                     );

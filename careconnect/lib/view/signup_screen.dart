@@ -6,7 +6,9 @@ import 'package:file_picker/file_picker.dart';
 import '../services/mysql_api_service.dart';
 import 'login_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ADDED: SharedPreferences
 import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED: Localization Import
+import '../main.dart'; // ADDED: Connects to the Global Magic Switch
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -182,7 +184,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final GoogleSignIn googleSignIn = GoogleSignIn();
 
       // FORCE Google Account Picker to display every single time.
-      // Signing out first clears the cached session and resets the native dialog picker.
       try {
         await googleSignIn.signOut();
       } catch (_) {
@@ -251,7 +252,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => _isLoading = true);
 
-    // Convert Images & PDFs to Base64 Strings if picked
     String? base64Profile, base64Passport, base64Ic, base64License, base64Cert;
     
     if (_profileImage != null) base64Profile = base64Encode(await _profileImage!.readAsBytes());
@@ -317,68 +317,98 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  // --- LANGUAGE TOGGLE UI ---
+  Widget _buildLanguageToggle() {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.language, color: Colors.white, size: 28),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      onSelected: (String languageCode) async {
+        appLocale.value = Locale(languageCode);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('language_code', languageCode);
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+        const PopupMenuItem<String>(value: 'en', child: Row(children: [Text('🇺🇸', style: TextStyle(fontSize: 18)), SizedBox(width: 10), Text('English')])),
+        const PopupMenuItem<String>(value: 'ms', child: Row(children: [Text('🇲🇾', style: TextStyle(fontSize: 18)), SizedBox(width: 10), Text('Bahasa Melayu')])),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!; // Initialized localization
+    final l10n = AppLocalizations.of(context)!; 
 
     return Scaffold(
-      body: Container(
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF6B3F69), Color(0xFF8D5F8C), Color(0xFFDDC3C3)],
-          ),
-        ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
-            child: Column(
-              children: [
-                _buildHeader(l10n),
-                const SizedBox(height: 25),
-                Card(
-                  elevation: 15,
-                  shadowColor: Colors.black45,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                  color: Colors.white.withOpacity(0.98),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_currentSection == 0) _buildRoleToggle(),
-                          SizedBox(
-                            height: 520, 
-                            child: PageView(
-                              controller: _pageController,
-                              physics: const NeverScrollableScrollPhysics(),
-                              children: [
-                                _buildSection1(l10n),
-                                _buildSection2(l10n),
-                                _selectedRole == 'Worker' ? _buildSection3Worker(l10n) : _buildSection3Client(l10n),
-                              ],
-                            ),
+      body: Stack(
+        children: [
+          Container(
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF6B3F69), Color(0xFF8D5F8C), Color(0xFFDDC3C3)],
+              ),
+            ),
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+                child: Column(
+                  children: [
+                    _buildHeader(l10n),
+                    const SizedBox(height: 25),
+                    Card(
+                      elevation: 15,
+                      shadowColor: Colors.black45,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      color: Colors.white.withOpacity(0.98),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_currentSection == 0) _buildRoleToggle(l10n),
+                            SizedBox(
+                              height: 520, 
+                                child: PageView(
+                                  controller: _pageController,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  children: [
+                                    _buildSection1(l10n),
+                                    _buildSection2(l10n),
+                                    _selectedRole == 'Worker' ? _buildSection3Worker(l10n) : _buildSection3Client(l10n),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              _buildNavigationButtons(l10n),
+                            ],
                           ),
-                          const SizedBox(height: 10),
-                          _buildNavigationButtons(l10n),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 20),
+                    TextButton(
+                      onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const LoginScreen())),
+                      child: Text(l10n.alreadyHaveAccount, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                TextButton(
-                  onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const LoginScreen())),
-                  child: Text(l10n.alreadyHaveAccount, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8.0, right: 8.0),
+                child: _buildLanguageToggle(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -408,23 +438,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _buildRoleToggle() {
+  Widget _buildRoleToggle(AppLocalizations l10n) {
     // Note: Role stays exactly "Client" or "Worker" internally for DB stability
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: [_buildRoleButton('Client'), const SizedBox(width: 15), _buildRoleButton('Worker')],
+        children: [_buildRoleButton('Client', l10n), const SizedBox(width: 15), _buildRoleButton('Worker', l10n)],
       ),
     );
   }
 
-  Widget _buildRoleButton(String role) {
+  Widget _buildRoleButton(String role, AppLocalizations l10n) {
     bool isSelected = _selectedRole == role;
+    
+    // Determine the translated text manually to prevent compilation errors
+    // if the .arb translation files haven't been successfully generated yet!
+    String displayText = role;
+    if (l10n.localeName == 'ms') {
+      displayText = role == 'Client' ? 'Klien' : 'Pekerja';
+    } else {
+      displayText = role == 'Client' ? 'Client' : 'Worker';
+    }
+
     return GestureDetector(
       onTap: () {
         setState(() {
-          _selectedRole = role;
+          _selectedRole = role; // DB logic STAYS as 'Client' or 'Worker'
           _currentSection = 0;
           _pageController.jumpToPage(0);
         });
@@ -437,7 +477,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           borderRadius: BorderRadius.circular(15),
           border: Border.all(color: isSelected ? const Color(0xFF6B3F69) : const Color(0xFFA376A2), width: 2),
         ),
-        child: Text(role.toUpperCase(), style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
+        child: Text(displayText.toUpperCase(), style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF6B3F69), fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -675,7 +715,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  // Helper method to safely translate Map Keys for UI without changing DB values
   String _getServiceTranslation(String key, AppLocalizations l10n) {
     if (key == 'Mobility Service') return l10n.mobilityService;
     if (key == 'Physiotherapy/Rehabilitation') return l10n.physiotherapy;

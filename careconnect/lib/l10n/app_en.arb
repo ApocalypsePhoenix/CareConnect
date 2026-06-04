@@ -353,5 +353,8 @@
   "chooseOnMap": "Choose on Map",
   "mapInterfaceOpening": "Map Interface opening...",
   "autoDetectGps": "Auto-detect using GPS",
-  "homeLocation": "Home"
+  "homeLocation": "Home",
+  "signInWithGoogle": "Sign in with Google",
+  "roleClient": "Client",
+  "roleWorker": "Worker"
 }

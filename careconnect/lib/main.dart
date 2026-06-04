@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ADDED: To read the saved language
 import 'view/splash_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'; 
 import 'package:flutter_gen/gen_l10n/app_localizations.dart'; 
 
 // THE MAGIC SWITCH: Controls the language for the whole app!
+// We initialize it with English as a fallback, but it will be overridden instantly in main()
 final ValueNotifier<Locale> appLocale = ValueNotifier<Locale>(const Locale('en'));
 
-void main() {
+void main() async {
+  // 1. Ensure Flutter is fully ready before we talk to the phone's native storage
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. Open the phone's memory and look for the saved language
+  final prefs = await SharedPreferences.getInstance();
+  final savedLanguage = prefs.getString('language_code') ?? 'en'; // Defaults to 'en' if nothing is saved
+
+  // 3. Set the global magic switch to the saved language BEFORE the app boots up
+  appLocale.value = Locale(savedLanguage);
+
   runApp(const CareConnectApp());
 }
 

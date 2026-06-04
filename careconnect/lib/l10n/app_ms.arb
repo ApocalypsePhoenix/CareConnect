@@ -358,5 +358,8 @@
   "chooseOnMap": "Pilih di Peta",
   "mapInterfaceOpening": "Antara muka peta dibuka...",
   "autoDetectGps": "Kesan automatik dengan GPS",
-  "homeLocation": "Rumah"
+  "homeLocation": "Rumah",
+  "signInWithGoogle": "Log masuk dengan Google",
+  "roleClient": "Klien",
+  "roleWorker": "Pekerja"
 }
