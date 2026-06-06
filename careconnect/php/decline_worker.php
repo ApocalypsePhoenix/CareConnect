@@ -18,6 +18,26 @@ if (isset($data['booking_id']) && isset($data['worker_id'])) {
         $freeWorker = $db->prepare("UPDATE worker_details SET is_available = 1 WHERE user_id = :w_id");
         $freeWorker->execute([':w_id' => $data['worker_id']]);
 
+        // ====================================================================
+        // 3. NEW: CREATE NOTIFICATION FOR THE WORKER
+        // ====================================================================
+        try {
+            $worker_id = $data['worker_id'];
+            $notif_title = "Request Declined";
+            $notif_message = "The client has reviewed your profile and declined the request. You have been made available for other incoming jobs.";
+            
+            $notif_query = "INSERT INTO notifications (user_id, title, message, type) VALUES (:uid, :title, :msg, 'cancellation')";
+            $notif_stmt = $db->prepare($notif_query);
+            $notif_stmt->execute([
+                ':uid' => $worker_id, 
+                ':title' => $notif_title, 
+                ':msg' => $notif_message
+            ]);
+        } catch (Exception $e) {
+            // Silently catch so a notification failure doesn't break the actual decline process
+        }
+        // ====================================================================
+
         echo json_encode(["success" => true]);
     } catch (Exception $e) {
         echo json_encode(["success" => false, "message" => $e->getMessage()]);

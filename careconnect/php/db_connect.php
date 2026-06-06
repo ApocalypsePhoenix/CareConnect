@@ -1,4 +1,7 @@
 <?php
+// Set PHP to Global UTC Timezone
+date_default_timezone_set('UTC');
+
 // Database credentials
 $servername = "localhost"; 
 $username = "arcadius_owner"; 
@@ -29,6 +32,10 @@ class Database {
                 $this->password
             );
             $this->conn->exec("set names utf8");
+            
+            // --- UPDATED: Force MySQL to use Global UTC (+00:00) ---
+            $this->conn->exec("SET time_zone = '+00:00'");
+            
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         } catch(PDOException $exception) {
             header('Content-Type: application/json');

@@ -359,4 +359,28 @@ class MysqlApiService {
       return {'success': false, 'message': 'Network error: $e'};
     }
   }
+
+  static Future<Map<String, dynamic>> getNotifications(String userId) async {
+    final url = Uri.parse('$_baseUrl/get_notifications.php?user_id=$userId&t=${DateTime.now().millisecondsSinceEpoch}');
+    try {
+      final response = await http.get(url);
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> markNotificationsRead(String userId) async {
+    final url = Uri.parse('$_baseUrl/mark_notification_read.php');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
 }

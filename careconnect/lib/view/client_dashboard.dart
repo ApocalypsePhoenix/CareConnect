@@ -33,6 +33,10 @@ class _ClientDashboardState extends State<ClientDashboard> {
   Map<String, dynamic>? _latestHistoryItem;
   bool _isLoadingHistory = true;
 
+  // --- NEW: DATABASE NOTIFICATIONS STATE ---
+  List<dynamic> _notifications = [];
+  int _unreadCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -40,9 +44,11 @@ class _ClientDashboardState extends State<ClientDashboard> {
     _fetchRecipients();
     _fetchActiveService();
     _fetchLatestHistory(); 
+    _fetchNotifications(); // FETCH ALERTS ON BOOT
     
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _fetchActiveService(isBackground: true);
+      _fetchNotifications(); // FETCH ALERTS IN BACKGROUND
     });
   }
 
@@ -62,6 +68,22 @@ class _ClientDashboardState extends State<ClientDashboard> {
           _latestHistoryItem = null;
         }
         _isLoadingHistory = false;
+      });
+    }
+  }
+
+  // --- NEW: FETCH NOTIFICATIONS FROM MYSQL ---
+  Future<void> _fetchNotifications() async {
+    final result = await MysqlApiService.getNotifications(_currentUser['id'].toString());
+    if (mounted && result['success'] == true) {
+      final notifs = result['notifications'] as List;
+      
+      // Calculate how many unread rows exist
+      int unread = notifs.where((n) => n['is_read'] == 0 || n['is_read'] == '0').length;
+      
+      setState(() {
+        _notifications = notifs;
+        _unreadCount = unread;
       });
     }
   }
@@ -135,9 +157,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
     bool isProcessing = false;
     bool isSuccess = false;
     
-    // =========================================================================
-    // FIX: Cache the data locally so the background timer can't destroy it!
-    // =========================================================================
     final String savedBookingId = _activeService?['id']?.toString() ?? '';
     final String savedWorkerId = _activeService?['worker_id']?.toString() ?? '';
     final String savedWorkerName = _activeService?['worker_name']?.toString() ?? 'your Caregiver';
@@ -200,7 +219,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
                               onPressed: () async {
                                 Navigator.pop(context); 
 
-                                // --- TRIGGER RATING POPUP USING CACHED DATA ---
                                 await showDialog(
                                   context: context,
                                   barrierDismissible: false, 
@@ -294,7 +312,6 @@ class _ClientDashboardState extends State<ClientDashboard> {
                                 
                                 await Future.delayed(const Duration(seconds: 2));
 
-                                // Pass the safely cached ID instead of _activeService!
                                 final result = await MysqlApiService.updateServiceStatus(savedBookingId, 'Completed');
 
                                 if (result['success'] == true) {
@@ -436,7 +453,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
                 ),
                 
                 const SizedBox(height: 25),
-                
+               
                 Row(
                   children: [
                     Expanded(
@@ -507,7 +524,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
   }
 
   Future<void> _approveWorker() async {
-    if (_activeService == null) return; // FIX: Added safety check
+    if (_activeService == null) return; 
     final l10n = AppLocalizations.of(context)!;
     setState(() => _isLoadingService = true);
     final result = await MysqlApiService.updateServiceStatus(_activeService!['id'].toString(), 'Accepted');
@@ -518,7 +535,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
   }
 
   Future<void> _declineWorker() async {
-    if (_activeService == null) return; // FIX: Added safety check
+    if (_activeService == null) return; 
     final l10n = AppLocalizations.of(context)!;
     setState(() => _isLoadingService = true);
     final result = await MysqlApiService.declineWorker(_activeService!['id'].toString(), _activeService!['worker_id'].toString());
@@ -564,6 +581,116 @@ class _ClientDashboardState extends State<ClientDashboard> {
     }
   }
 
+  // =========================================================================
+  // --- NEW: SMART NOTIFICATION PANEL ---
+  // =========================================================================
+  void _showNotificationPanel(BuildContext context, AppLocalizations l10n) {
+    // We now map completely from the MySQL Database!
+    List<Widget> notificationWidgets = _notifications.map((notif) {
+      bool isUnread = notif['is_read'] == 0 || notif['is_read'] == '0';
+      
+      // --- NEW: GLOBAL TIMEZONE CONVERTER ---
+      String displayTime = 'Recently';
+      if (notif['created_at'] != null) {
+        try {
+          // Add 'Z' to tell Dart this time is UTC, then convert to phone's Local Time
+          DateTime utcTime = DateTime.parse(notif['created_at'].toString() + "Z");
+          DateTime localTime = utcTime.toLocal();
+          
+          // Format it back nicely (YYYY-MM-DD HH:mm)
+          displayTime = "${localTime.year}-${localTime.month.toString().padLeft(2, '0')}-${localTime.day.toString().padLeft(2, '0')} ${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}";
+        } catch (e) {
+          displayTime = notif['created_at'].toString().substring(0, 16); // Fallback
+        }
+      }
+
+      return _buildNotificationItem(
+        icon: isUnread ? Icons.notifications_active : Icons.notifications_none,
+        color: isUnread ? Colors.blueAccent : Colors.grey.shade600,
+        title: notif['title'] ?? 'Notification',
+        desc: notif['message'] ?? '',
+        time: displayTime, // Now uses the automatically converted local time!
+      );
+    }).toList();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.65,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
+            const SizedBox(height: 15),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Notifications", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.grey),
+                    onPressed: () => Navigator.pop(context),
+                  )
+                ],
+              ),
+            ),
+            const Divider(),
+            Expanded(
+              child: notificationWidgets.isEmpty 
+                ? const Center(child: Text("No new notifications", style: TextStyle(color: Colors.grey)))
+                : ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    children: notificationWidgets,
+                  ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationItem({required IconData icon, required Color color, required String title, required String desc, required String time}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: color.withOpacity(0.2))
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.2),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const SizedBox(height: 4),
+                Text(desc, style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.3)),
+                const SizedBox(height: 8),
+                Text(time, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+  // =========================================================================
+
   // --- VISUAL TRANSLATION HELPERS ---
   String _getServiceTranslation(String key, AppLocalizations l10n) {
     if (key == 'Mobility Service') return l10n.mobilityService;
@@ -573,7 +700,7 @@ class _ClientDashboardState extends State<ClientDashboard> {
   }
   
   String _getGenericTranslation(String key, AppLocalizations l10n) {
-    final k = key.trim(); // TRIMS INVISIBLE SPACES!
+    final k = key.trim(); 
     if (k == 'Male') return l10n.male;
     if (k == 'Female') return l10n.female;
     if (k == 'Malay') return l10n.malay;
@@ -671,12 +798,52 @@ class _ClientDashboardState extends State<ClientDashboard> {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          CircleAvatar(
-                            backgroundColor: Colors.white24,
-                            child: IconButton(
-                              icon: const Icon(Icons.notifications_none, color: Colors.white),
-                              onPressed: () {},
-                            ),
+                          
+                          // ==========================================
+                          // BELL ICON WITH REAL-TIME RED BADGE
+                          // ==========================================
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: Colors.white24,
+                                child: IconButton(
+                                  icon: const Icon(Icons.notifications_none, color: Colors.white),
+                                  onPressed: () {
+                                    _showNotificationPanel(context, l10n);
+                                    
+                                    // If they had unread messages, mark them as read in DB!
+                                    if (_unreadCount > 0) {
+                                      MysqlApiService.markNotificationsRead(_currentUser['id'].toString());
+                                      setState(() {
+                                        _unreadCount = 0;
+                                        // Update local list visually immediately
+                                        for (var n in _notifications) {
+                                          n['is_read'] = 1;
+                                        }
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              if (_unreadCount > 0)
+                                Positioned(
+                                  right: -2,
+                                  top: -2,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.redAccent,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: const Color(0xFF6B3F69), width: 1.5),
+                                    ),
+                                    child: Text(
+                                      '$_unreadCount',
+                                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ],
                       ),

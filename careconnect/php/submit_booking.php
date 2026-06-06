@@ -75,7 +75,7 @@ $workerEarns = $serviceAmount - $adminFee;
 $payment_amount = number_format($workerEarns, 2, '.', '');
 
 // ====================================================================
-// 2. INSERT INTO DATABASE (Now includes payment_amount!)
+// 2. INSERT INTO DATABASE 
 // ====================================================================
 try {
     $query = "INSERT INTO bookings (
@@ -111,17 +111,35 @@ try {
     $stmt->bindParam(':preferred_language', $preferred_language);
     $stmt->bindParam(':preferred_gender', $preferred_gender);
     $stmt->bindParam(':preferred_race', $preferred_race);
-    
-    // Bind the newly calculated payment amount!
     $stmt->bindParam(':payment_amount', $payment_amount);
 
     if ($stmt->execute()) {
         $booking_id = $db->lastInsertId();
+
+        // ====================================================================
+        // 3. CREATE NOTIFICATION FOR CLIENT (NEW)
+        // ====================================================================
+        try {
+            $notif_title = "Booking Request Sent";
+            $notif_message = "Your request for $service_needed has been posted! We'll notify you as soon as a caregiver responds.";
+            
+            $notif_query = "INSERT INTO notifications (user_id, title, message, type) VALUES (:uid, :title, :msg, 'booking')";
+            $notif_stmt = $db->prepare($notif_query);
+            $notif_stmt->execute([
+                ':uid' => $client_id, 
+                ':title' => $notif_title, 
+                ':msg' => $notif_message
+            ]);
+        } catch (Exception $e) {
+            // Silently catch so a notification failure doesn't break the booking!
+        }
+        // ====================================================================
+
         echo json_encode([
             "success" => true, 
             "message" => "Booking submitted successfully!", 
             "booking_id" => $booking_id,
-            "calculated_payment" => $payment_amount // Send back just so the app knows!
+            "calculated_payment" => $payment_amount
         ]);
     } else {
         echo json_encode(["success" => false, "message" => "Failed to submit booking."]);
