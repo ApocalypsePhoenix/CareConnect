@@ -383,4 +383,29 @@ class MysqlApiService {
       return {'success': false, 'message': 'Network error: $e'};
     }
   }
+
+  // --- SUBMIT SUPPORT TICKET ---
+  static Future<Map<String, dynamic>> submitSupportTicket({
+    required String userId,
+    required String role,
+    required String topic,
+    required String message,
+  }) async {
+    final url = Uri.parse('$_baseUrl/submit_support.php');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_id': userId,
+          'role': role,
+          'topic': topic,
+          'message': message,
+        }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
 }

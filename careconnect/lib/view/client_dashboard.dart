@@ -8,6 +8,7 @@ import 'dart:async';
 import 'booking_history_screen.dart';
 import 'rating_review_screen.dart'; 
 import 'package:flutter_gen/gen_l10n/app_localizations.dart'; 
+import 'support_screen.dart';
 
 class ClientDashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -799,6 +800,21 @@ class _ClientDashboardState extends State<ClientDashboard> {
                           ),
                           const SizedBox(width: 10),
                           
+                         // ADD THIS NEW BUTTON FOR SUPPORT
+                          CircleAvatar(
+                            backgroundColor: Colors.white24,
+                            child: IconButton(
+                              icon: const Icon(Icons.help_outline, color: Colors.white),
+                              onPressed: () {
+                                Navigator.push(
+                                  context, 
+                                  MaterialPageRoute(builder: (context) => SupportScreen(user: _currentUser)) // Or widget.user
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10), // Add some spacing between the Help button and Notification Bell
+
                           // ==========================================
                           // BELL ICON WITH REAL-TIME RED BADGE
                           // ==========================================

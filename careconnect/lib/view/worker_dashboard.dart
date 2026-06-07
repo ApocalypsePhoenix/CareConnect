@@ -7,6 +7,7 @@ import 'booking_history_screen.dart';
 import 'settingworker_screen.dart';
 import 'rating_review_screen.dart'; 
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'support_screen.dart';
 
 class WorkerDashboard extends StatefulWidget {
   final Map<String, dynamic> user;

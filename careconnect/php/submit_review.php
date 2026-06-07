@@ -16,7 +16,6 @@ $db = $database->getConnection();
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-// 1. Verify we received all required data
 if (
     empty($data['booking_id']) || 
     empty($data['reviewer_id']) || 
@@ -34,11 +33,10 @@ $rating = (int)$data['rating'];
 $comment = isset($data['comment']) ? trim($data['comment']) : '';
 
 try {
-    // We use a transaction so if anything fails, it safely rolls back
     $db->beginTransaction();
 
     // ---------------------------------------------------------
-    // STEP A: Insert the review safely into the permanent backup table
+    // STEP A: Insert the review safely into the database
     // ---------------------------------------------------------
     $insertQuery = "INSERT INTO reviews (booking_id, reviewer_id, reviewee_id, rating, comment) 
                     VALUES (:booking_id, :reviewer_id, :reviewee_id, :rating, :comment)";
@@ -54,11 +52,13 @@ try {
     // ---------------------------------------------------------
     // STEP B: Update the user's overall average rating
     // ---------------------------------------------------------
-    $avgQuery = "SELECT AVG(rating) as avg_rating FROM reviews WHERE reviewee_id = :reviewee_id";
+    $avgQuery = "SELECT AVG(rating) as avg_rating, COUNT(*) as total_reviews FROM reviews WHERE reviewee_id = :reviewee_id";
     $avgStmt = $db->prepare($avgQuery);
     $avgStmt->execute([':reviewee_id' => $reviewee_id]);
-    $avgResult = $avgStmt->fetch(PDO::FETCH_ASSOC);
-    $newAvg = $avgResult['avg_rating'] ? round($avgResult['avg_rating'], 2) : 0.00;
+    $result = $avgStmt->fetch(PDO::FETCH_ASSOC);
+    
+    $newAvg = $result['avg_rating'] ? round($result['avg_rating'], 2) : 0.00;
+    $totalReviews = (int)$result['total_reviews'];
 
     $updateAvgQuery = "UPDATE users SET average_rating = :new_avg WHERE id = :reviewee_id";
     $db->prepare($updateAvgQuery)->execute([
@@ -67,36 +67,31 @@ try {
     ]);
 
     // ---------------------------------------------------------
-    // STEP C: SMART WARNING & BANNING SYSTEM (3 Strikes Rule)
+    // STEP C: PURE AVERAGE-BASED MODERATION (Grab/Uber Style)
     // ---------------------------------------------------------
     $statusMessage = "Review submitted successfully.";
-    
-    if ($rating <= 2) {
-        // Increment their warning count by 1
-        $warnQuery = "UPDATE users SET warning_count = warning_count + 1 WHERE id = :reviewee_id";
-        $db->prepare($warnQuery)->execute([':reviewee_id' => $reviewee_id]);
 
-        // Fetch their newly updated warning count to see if we need to ban them
-        $checkWarnQuery = "SELECT warning_count FROM users WHERE id = :reviewee_id";
-        $checkStmt = $db->prepare($checkWarnQuery);
-        $checkStmt->execute([':reviewee_id' => $reviewee_id]);
-        $warnResult = $checkStmt->fetch(PDO::FETCH_ASSOC);
-        $currentWarnings = (int)$warnResult['warning_count'];
-
-        if ($currentWarnings >= 3) {
-            // 3rd strike! Ban the user permanently.
-            $banQuery = "UPDATE users SET account_status = 'Banned' WHERE id = :reviewee_id";
-            $db->prepare($banQuery)->execute([':reviewee_id' => $reviewee_id]);
-            $statusMessage = "Review submitted. User has been banned due to receiving 3 warnings.";
+    // Only apply moderation if the user has received at least 5 reviews (Grace Period)
+    if ($totalReviews >= 5) {
+        
+        if ($newAvg < 3.0) {
+            // Danger Zone: Average is extremely low. Ban the user.
+            $db->prepare("UPDATE users SET account_status = 'Banned' WHERE id = :reviewee_id")->execute([':reviewee_id' => $reviewee_id]);
+            $statusMessage = "Review submitted. User has been Banned due to a critically low average rating ($newAvg).";
+            
+        } elseif ($newAvg < 4.0) {
+            // Warning Zone: Average is getting bad, but not ban-worthy yet.
+            $db->prepare("UPDATE users SET account_status = 'Warning' WHERE id = :reviewee_id AND account_status != 'Banned'")->execute([':reviewee_id' => $reviewee_id]);
+            $statusMessage = "Review submitted. User placed on Warning due to low average rating ($newAvg).";
+            
         } else {
-            // 1st or 2nd strike. Set them to Warning status.
-            $setWarnQuery = "UPDATE users SET account_status = 'Warning' WHERE id = :reviewee_id AND account_status != 'Banned'";
-            $db->prepare($setWarnQuery)->execute([':reviewee_id' => $reviewee_id]);
-            $statusMessage = "Review submitted. User has received a warning ($currentWarnings/3).";
+            // Safe Zone: Average is 4.0 or higher. 
+            // If they were previously on a Warning, this restores them to Active!
+            $db->prepare("UPDATE users SET account_status = 'Active' WHERE id = :reviewee_id AND account_status != 'Banned'")->execute([':reviewee_id' => $reviewee_id]);
         }
     }
 
-    // Commit all these changes at once
+    // Commit all changes
     $db->commit();
 
     echo json_encode([
@@ -106,7 +101,6 @@ try {
     ]);
 
 } catch (PDOException $e) {
-    // If anything broke, undo everything to keep data safe
     $db->rollBack();
     echo json_encode(["success" => false, "message" => "Database error: " . $e->getMessage()]);
 }
