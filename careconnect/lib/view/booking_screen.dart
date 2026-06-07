@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart'; 
 import '../services/mysql_api_service.dart';
 import 'location_search_screen.dart'; 
-import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ADDED: Localization
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; 
 
 class BookingScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -38,7 +38,6 @@ class _BookingScreenState extends State<BookingScreen> {
   String? _preferredGender;
   String? _preferredRace; 
 
-  // Hardcoded for database safety, visually translated in UI
   final List<String> _services = ['Mobility Service', 'Physiotherapy/Rehabilitation', 'Daily Assistance/Nursing Care'];
   final List<String> _durations = ['1 hour', '2 hours', '3 hours', '4 hours', '5 hours+'];
   final List<String> _languages = ['Any', 'Malay', 'English', 'Mandarin', 'Tamil'];
@@ -160,7 +159,6 @@ class _BookingScreenState extends State<BookingScreen> {
 
   void _showError(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
 
-  // --- VISUAL TRANSLATION HELPERS ---
   String _getServiceTranslation(String key, AppLocalizations l10n) {
     if (key == 'Mobility Service') return l10n.mobilityService;
     if (key == 'Physiotherapy/Rehabilitation') return l10n.physiotherapy;
@@ -169,7 +167,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   String _getGenericTranslation(String key, AppLocalizations l10n) {
-    if (key == 'Any') return l10n.anyOption; // TRANSLATED!
+    if (key == 'Any') return l10n.anyOption; 
     if (key == 'Male') return l10n.male;
     if (key == 'Female') return l10n.female;
     if (key == 'Malay') return l10n.malay;
@@ -181,7 +179,6 @@ class _BookingScreenState extends State<BookingScreen> {
     return key;
   }
 
-  // ADD THIS NEW HELPER RIGHT HERE
   String _getDurationTranslation(String key, AppLocalizations l10n) {
     if (key == '1 hour') return l10n.hour1;
     if (key == '2 hours') return l10n.hours2;
@@ -252,7 +249,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       hint: l10n.whoIsBookingFor,
                       icon: Icons.family_restroom,
                       options: ['Self', 'Others'],
-                      visualOptions: [l10n.self, l10n.othersOption], // Translated manually for UI
+                      visualOptions: [l10n.self, l10n.othersOption], 
                       onChanged: (val) {
                         setState(() {
                           _careTarget = val!;
@@ -304,7 +301,6 @@ class _BookingScreenState extends State<BookingScreen> {
                     Text(l10n.bookingPreferences, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
                     const SizedBox(height: 10),
 
-                    // REPLACE THIS EXPECTED DURATION DROPDOWN
                     _buildDropdown(
                       value: _expectedDuration, 
                       hint: l10n.expectedDuration, 
@@ -384,7 +380,7 @@ class _BookingScreenState extends State<BookingScreen> {
           const SizedBox(height: 10),
           Text(l10n.patientLabel(patientName, patientAge), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 4),
-          Text('${l10n.conditionLabel('')} ${patientData['medical_condition'] ?? 'Not specified'}', style: const TextStyle(fontSize: 13)), // Kept condition untranslated as per previous discussions
+          Text('${l10n.conditionLabel('')} ${patientData['medical_condition'] ?? 'Not specified'}', style: const TextStyle(fontSize: 13)), 
           const SizedBox(height: 4),
           Text('${l10n.specialNeedsLabel('')} ${patientData['special_needs'] ?? 'Not specified'}', style: const TextStyle(fontSize: 13)),
         ],
@@ -412,7 +408,6 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  // Used for manual visual options (like "Self/Others")
   Widget _buildDropdown({required String? value, required String hint, required IconData icon, required List<String> options, required List<String> visualOptions, required Function(String?) onChanged}) {
     return DropdownButtonFormField<String>(
       value: value,
@@ -434,7 +429,6 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  // Used for safe translation of backend keywords (like 'Male', 'Malay', 'Mobility Service')
   Widget _buildTranslatedDropdown({required String? value, required String hint, required IconData icon, required List<String> options, required bool isService, required Function(String?) onChanged, required AppLocalizations l10n}) {
     return DropdownButtonFormField<String>(
       value: value,
@@ -457,13 +451,14 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
+  // EDITED: Changed maxLines from 2 to 1 for precise One-Row layout
   Widget _buildClickableLocationField({required String label, required TextEditingController controller, required VoidCallback onTap, IconData icon = Icons.location_on}) {
     return GestureDetector(
       onTap: onTap,
       child: AbsorbPointer(
         child: TextField(
           controller: controller,
-          maxLines: 2,
+          maxLines: 1, // Only 1 row now
           minLines: 1,
           decoration: InputDecoration(
             labelText: label,
