@@ -23,6 +23,30 @@ class _SupportScreenState extends State<SupportScreen> {
     'Other'
   ];
 
+  // Helper method to build individual FAQ items
+  Widget _buildFaqItem(String question, String answer) {
+    return ListTile(
+      title: Text(question, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4.0),
+        child: Text(answer, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      ),
+    );
+  }
+
+  // Helper method to build FAQ categories
+  Widget _buildFaqCategory(String title, List<Widget> items) {
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
+      child: ExpansionTile(
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF6B3F69))),
+        children: items,
+      ),
+    );
+  }
+
   Future<void> _submitForm() async {
     if (_selectedTopic == null) {
       _showError('Please select a topic.');
@@ -80,6 +104,33 @@ class _SupportScreenState extends State<SupportScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- FAQ SECTION START ---
+            const Text('Frequently Asked Questions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),
+            const SizedBox(height: 15),
+            _buildFaqCategory("1. General & Account", [
+              _buildFaqItem("Can I book a service for family members?", "Yes! You can add family members as 'Recipients' in your profile. Select them during your booking."),
+              _buildFaqItem("Are the caregivers verified?", "Absolutely. All workers undergo a strict verification process including ICs, driving licenses, and certifications."),
+            ]),
+            _buildFaqCategory("2. Services & Booking", [
+              _buildFaqItem("What types of services do you offer?", "We offer Mobility Services, Physiotherapy & Rehabilitation, and Daily Assistance/Nursing Care."),
+              _buildFaqItem("How do I know when my caregiver will arrive?", "You will receive real-time notifications for 'On The Way', 'Arrived', and 'Service Started'."),
+            ]),
+            _buildFaqCategory("3. Payments", [
+              _buildFaqItem("When do I pay for the service?", "Payment is made after completion. Once the caregiver marks the job as 'Completed', you will be prompted to pay."),
+              _buildFaqItem("How is the payment amount calculated?", "It is calculated based on the service type, duration, and travel distance."),
+            ]),
+            _buildFaqCategory("4. Account Status & Safety", [
+              _buildFaqItem("How are ratings calculated?", "Your average rating is based on reviews from completed bookings by both clients and workers."),
+              _buildFaqItem("Can I get warned or banned due to low ratings?", "Yes. Consistently low ratings may lead to a 'Warning' status or a ban to protect community quality."),
+              _buildFaqItem("What happens if my account is banned?", "You can no longer log in. If you believe this was a mistake, use the contact form below to appeal."),
+            ]),
+            _buildFaqCategory("5. Registration & Security", [
+              _buildFaqItem("Why do I need to provide my IC number?", "For security and identity verification to keep the community safe for everyone."),
+              _buildFaqItem("I am having trouble signing up?", "Ensure your email and IC/Passport are not already registered. We do not allow duplicate accounts to prevent fraud."),
+            ]),
+            const SizedBox(height: 40),
+            // --- FAQ SECTION END ---
+
             const Icon(Icons.support_agent, size: 60, color: Color(0xFF8D5F8C)),
             const SizedBox(height: 15),
             const Text('How can we help you?', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF6B3F69))),

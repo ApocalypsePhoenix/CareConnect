@@ -577,6 +577,21 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
                           ),
                           const SizedBox(width: 10),
                           
+                          // ADD THIS NEW BUTTON FOR SUPPORT
+                          CircleAvatar(
+                            backgroundColor: Colors.white24,
+                            child: IconButton(
+                              icon: const Icon(Icons.help_outline, color: Colors.white),
+                              onPressed: () {
+                                Navigator.push(
+                                  context, 
+                                  MaterialPageRoute(builder: (context) => SupportScreen(user: _currentUser)) // Or widget.user
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10), // Add some spacing between the Help button and Notification Bell
+
                           // ==========================================
                           // BELL ICON WITH REAL-TIME RED BADGE
                           // ==========================================
