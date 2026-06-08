@@ -652,6 +652,28 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // --- NEW: GPS REMINDER ---
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 20),
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: Colors.amber.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.gps_fixed, color: Colors.amber),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            "Reminder: Please ensure your GPS is turned on before service.",
+                            style: TextStyle(fontSize: 13, color: Colors.amber.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   _buildFindClientCard(l10n),
                   const SizedBox(height: 30),
 
@@ -870,7 +892,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
               Expanded(child: Text(l10n.dropoffLocation(_activeService!['dropoff_location'] ?? ''), style: const TextStyle(fontSize: 14))),
             ]),
           ],
-         
+          
           const Divider(height: 30),
         
           SizedBox(
